@@ -65,7 +65,7 @@ Global configuration settings for logging behavior.
 ## Development
 
 ### Prerequisites
-- Python 3.8+
+- Python 3.10+
 
 ### Installing in Development Mode
 ```bash

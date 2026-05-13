@@ -47,11 +47,19 @@ class logger:
 
     def get_caller_info(self):
         if not LOG_TRACING_ENABLED:
-            frameinfo = getframeinfo(stack()[calldepth][0])
-            return f"{frameinfo.filename.rsplit('/', 1)[-1]}:{frameinfo.lineno}"
+            try:
+                frameinfo = getframeinfo(stack()[calldepth][0])
+                return f"{os.path.basename(frameinfo.filename)}:{frameinfo.lineno}"
+            except IndexError:
+                return "unknown:0"
         trace_back_stack = []
-        for _depth in range(calldepth, stack().__len__()):
-            test_frame = getframeinfo(stack()[_depth][0])
-            trace_back_stack.append(f"{test_frame.filename.rsplit('/', 1)[-1]}:{test_frame.lineno}")
+        for _depth in range(calldepth, len(stack())):
+            try:
+                test_frame = getframeinfo(stack()[_depth][0])
+                trace_back_stack.append(f"{os.path.basename(test_frame.filename)}:{test_frame.lineno}")
+            except IndexError:
+                break
+        if not trace_back_stack:
+            return "unknown:0"
         return ">".join(reversed(trace_back_stack))
     
