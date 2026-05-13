@@ -79,4 +79,4 @@ MIT
 
 ## Author
 
-Nathan Nguyen
+Nathan T Nguyen
