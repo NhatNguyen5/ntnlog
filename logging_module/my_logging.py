@@ -11,19 +11,20 @@ import os
 from datetime import datetime
 from logging_module.file_utils import FileUtilsError, file_verify_path
 from inspect import getframeinfo, stack
-from logging_module.config import LOGGING_ENABLED, LOG_TRACING_ENABLED
+from logging_module.config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
 
 calldepth = 3
 
 class logger:
     def __init__(self):
-        self.enable = True
+        self._enable = True
+        self._enable_log_tracing = False
 
-    def __call__(self, msg, prt_msg = False, console_msg = ""):
-        self.log(msg, prt_msg = prt_msg, console_msg = console_msg)
+    def __call__(self, message, print_to_console = False, console_message = ""):
+        self.log(message, print_to_console = print_to_console, console_message = console_message)
 
-    def log(self, message, prt_msg = False, console_msg = ""):
-        if not LOGGING_ENABLED or not self.enable:
+    def log(self, message, print_to_console = False, console_message = ""):
+        if not GLOBAL_LOGGING_ENABLED or not self._enable:
             return
         date = datetime.now().strftime("%Y-%m-%d")
         time = datetime.now().strftime("%H:%M:%S")
@@ -42,11 +43,11 @@ class logger:
                     log_file.write(f"Log file created on {date} at {time}\n")
             with open(file_name, "a") as log_file:
                 log_file.write(log_entry)
-                if prt_msg:
-                    print(message if console_msg == "" else console_msg)
+                if print_to_console:
+                    print(message if console_message == "" else console_message)
 
     def get_caller_info(self):
-        if not LOG_TRACING_ENABLED:
+        if not GLOBAL_LOG_TRACING_ENABLED or not self._enable_log_tracing:
             try:
                 frameinfo = getframeinfo(stack()[calldepth][0])
                 return f"{os.path.basename(frameinfo.filename)}:{frameinfo.lineno}"
@@ -62,4 +63,10 @@ class logger:
         if not trace_back_stack:
             return "unknown:0"
         return ">".join(reversed(trace_back_stack))
+    
+    def enable_logging(self, enable_logging: bool):
+        self._enable = enable_logging
+
+    def enable_log_tracing(self, enable_log_tracing: bool):
+        self._enable_log_tracing = enable_log_tracing
     

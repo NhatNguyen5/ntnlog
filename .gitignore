@@ -46,16 +46,10 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
-<<<<<<< HEAD
-*.py.cover
-.hypothesis/
-.pytest_cache/
-cover/
-=======
 *.py,cover
 .hypothesis/
 .pytest_cache/
->>>>>>> 8e9e6c3 (Initial commit: logging-module package)
+cover/
 
 # Translations
 *.mo

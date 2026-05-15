@@ -2,15 +2,21 @@
 requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+# This tells build exactly which folders to treat as packages
+include = ["logging_module*"] 
+# This ensures the 'logs' folder is ignored
+exclude = ["logs*"]
+
 [project]
 name = "logging-module"
-version = "0.1.0.dev2"
+version = "0.1.1"
 description = "A comprehensive logging and file utility module for Python applications"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Nathan T Nguyen", email = "nhatnguyen2807@gmail.com"}
 ]
 keywords = ["logging", "file-utilities", "tracing", "debugging"]
 classifiers = [
@@ -23,8 +29,18 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
 [project.urls]
-Homepage = "https://github.com/yourusername/logging-module"
-Documentation = "https://logging-module.readthedocs.io"
-Repository = "https://github.com/yourusername/logging-module.git"
-Issues = "https://github.com/yourusername/logging-module/issues"
+CreatorGithub = "https://github.com/NhatNguyen5"
+Homepage = "https://test.pypi.org/project/logging-module/"
+Documentation = "https://github.com/NhatNguyen5/logging_module/wiki/Instructions"
+Repository = "https://github.com/NhatNguyen5/logging-module.git"
+Issues = "https://github.com/NhatNguyen5/logging_module/issues"

@@ -37,28 +37,26 @@ class FileOperator(str, Enum):
 
 def file_verify_path(working_directory, directory):
     path_to_directory = os.path.join(working_directory, directory)
-    verify_result = path_to_directory
     if not path_to_directory.startswith(working_directory) or ".." in os.path.relpath(path_to_directory, working_directory):   
-        verify_result = FileUtilsError.OUTSIDE_WORKING_DIR.value.format(directory=directory)
+        return FileUtilsError.OUTSIDE_WORKING_DIR.value.format(directory=directory)
     
     if not os.path.isdir(path_to_directory):
-        verify_result = FileUtilsError.NOT_A_DIRECTORY.value.format(directory=directory)
+        return FileUtilsError.NOT_A_DIRECTORY.value.format(directory=directory)
 
-    return verify_result
+    return path_to_directory
 
 def file_verify_file(working_directory, file, options=None):
     path_to_file = os.path.join(working_directory, file)
-    verify_result = path_to_file
     match options:
         case FileOperator.READ_FILE:
             if not path_to_file.startswith(working_directory) or ".." in os.path.relpath(path_to_file, working_directory):   
-                verify_result = FileUtilsError.FILE_READ_OUTSIDE_WORKING_DIR.value.format(file_path=path_to_file)
+                return FileUtilsError.FILE_READ_OUTSIDE_WORKING_DIR.value.format(file_path=path_to_file)
             
             if not os.path.isfile(path_to_file):
-                verify_result = FileUtilsError.FILE_READ_NOT_FOUND_OR_NOT_REGULAR.value.format(file_path=path_to_file)
+                return FileUtilsError.FILE_READ_NOT_FOUND_OR_NOT_REGULAR.value.format(file_path=path_to_file)
         case FileOperator.WRITE_FILE:
             if not path_to_file.startswith(working_directory) or ".." in os.path.relpath(path_to_file, working_directory):
-                verify_result = FileUtilsError.FILE_WRITE_OUTSIDE_WORKING_DIR.value.format(file_path=path_to_file)
+                return FileUtilsError.FILE_WRITE_OUTSIDE_WORKING_DIR.value.format(file_path=path_to_file)
 
             # For write operations, allow creating new files. The caller should ensure
             # the parent directory exists (or create it) before writing. Here we only
@@ -67,15 +65,15 @@ def file_verify_file(working_directory, file, options=None):
 
         case FileOperator.EXECUTE_FILE:
             if not path_to_file.startswith(working_directory) or ".." in os.path.relpath(path_to_file, working_directory):
-                verify_result = FileUtilsError.FILE_EXECUTE_OUTSIDE_WORKING_DIR.value.format(file_path=file)
+                return FileUtilsError.FILE_EXECUTE_OUTSIDE_WORKING_DIR.value.format(file_path=file)
             
             if not os.path.isfile(path_to_file):
-                verify_result = FileUtilsError.FILE_EXECUTE_NOT_FOUND_OR_NOT_REGULAR.value.format(file_path=file)
+                return FileUtilsError.FILE_EXECUTE_NOT_FOUND_OR_NOT_REGULAR.value.format(file_path=file)
 
             if not path_to_file.endswith('.py'):
-                verify_result = FileUtilsError.FILE_EXECUTE_NOT_PYTHON.value.format(file_path=file)
+                return FileUtilsError.FILE_EXECUTE_NOT_PYTHON.value.format(file_path=file)
 
         case _:
             raise ValueError("Invalid file operation option provided.")
 
-    return verify_result
+    return path_to_file

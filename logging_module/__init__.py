@@ -8,7 +8,7 @@ This module provides:
 """
 
 from .my_logging import logger
-from .config import LOGGING_ENABLED, LOG_TRACING_ENABLED
+from .config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
 from .file_utils import (
     FileUtilsError,
     FileExecutionError,
@@ -17,8 +17,8 @@ from .file_utils import (
     file_verify_file,
 )
 
-__version__ = "0.1.0"
-__author__ = "Your Name"
+__version__ = "0.1.1"
+__author__ = "Nathan T Nguyen"
 
 __all__ = [
     "logger",
