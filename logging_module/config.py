@@ -7,4 +7,4 @@
 #######################################################################
 
 GLOBAL_LOGGING_ENABLED = True
-GLOBAL_LOG_TRACING_ENABLED = False
+GLOBAL_LOG_TRACING_ENABLED = True

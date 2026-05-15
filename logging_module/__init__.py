@@ -7,7 +7,7 @@ This module provides:
 - Tracing and debug capabilities
 """
 
-from .my_logging import logger
+from .my_logging import Logger
 from .config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
 from .file_utils import (
     FileUtilsError,
@@ -17,13 +17,13 @@ from .file_utils import (
     file_verify_file,
 )
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __author__ = "Nathan T Nguyen"
 
 __all__ = [
-    "logger",
-    "LOGGING_ENABLED",
-    "LOG_TRACING_ENABLED",
+    "Logger",
+    "GLOBAL_LOGGING_ENABLED",
+    "GLOBAL_LOG_TRACING_ENABLED",
     "FileUtilsError",
     "FileExecutionError",
     "FileOperator",

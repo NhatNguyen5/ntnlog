@@ -26,10 +26,10 @@ pip install -e ./logging_module
 ## Quick Start
 
 ```python
-from logging_module import logger
+from logging_module import Logger
 
 # Create a logger instance
-app_logger = logger()
+app_logger = Logger()
 
 # Basic logging
 app_logger.log("Application started")
@@ -46,13 +46,19 @@ app_logger("Quick log message")
 # Control logging behavior
 app_logger.enable_logging(False)  # Disable this logger instance
 app_logger.enable_log_tracing(True)  # Enable detailed tracing for this instance
+
+# Configure custom log directory
+custom_logger = Logger(log_dir="my_logs")
+
+# Configure project directory for better frame filtering
+project_logger = Logger(project_dir="/path/to/project")
 ```
 
 ## Configuration
 
 ### Logging Config (`config.py`)
 - `GLOBAL_LOGGING_ENABLED`: Enable/disable logging (default: `True`)
-- `GLOBAL_LOG_TRACING_ENABLED`: Enable/disable detailed tracing (default: `False`)
+- `GLOBAL_LOG_TRACING_ENABLED`: Enable/disable detailed tracing (default: `True`)
 
 ```python
 from logging_module.config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
@@ -65,7 +71,9 @@ Main logging class providing timestamped, structured logging with caller informa
 
 **Key Features:**
 - Automatic timestamping and file logging
-- Caller information tracking
+- Caller information tracking with configurable frame filtering
+- Configurable log directory and project directory
+- Thread-safe file operations
 - Configurable tracing depth
 - Console output options
 - Instance-level enable/disable controls

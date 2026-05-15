@@ -11,4 +11,4 @@ def test_global_logging_enabled():
 def test_global_log_tracing_enabled():
     """Test that GLOBAL_LOG_TRACING_ENABLED is a boolean."""
     assert isinstance(GLOBAL_LOG_TRACING_ENABLED, bool)
-    assert GLOBAL_LOG_TRACING_ENABLED is False  # Default value
+    assert GLOBAL_LOG_TRACING_ENABLED is True  # Default value
