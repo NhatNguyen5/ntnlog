@@ -1,10 +1,6 @@
 """
-Logging Module - A comprehensive logging and file utility package.
-
-This module provides:
-- Logging configuration and management
-- File utilities for logging operations
-- Tracing and debug capabilities
+Logging Module - Lightweight Python logger with timestamped file output,
+caller stack tracing, and working-directory-scoped file utilities.
 """
 
 from .my_logging import Logger
@@ -17,7 +13,7 @@ from .file_utils import (
     file_verify_file,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __author__ = "Nathan T Nguyen"
 
 __all__ = [

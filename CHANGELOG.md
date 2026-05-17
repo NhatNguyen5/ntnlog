@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-05-17
+### Changed
+- Corrected package description to accurately reflect the module's scope: removed unsupported FastAPI claim, replaced overstated "error tracking" with accurate description of file-operation error handling
+
 ## [0.2.0] - 2026-05-17
 ### Added
 - GitHub Actions publish workflow with PyPI Trusted Publishing (no API tokens required)

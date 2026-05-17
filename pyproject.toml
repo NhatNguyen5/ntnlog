@@ -10,8 +10,8 @@ exclude = ["logs*"]
 
 [project]
 name = "logging-module"
-version = "0.2.0"
-description = "A comprehensive logging and file utility module for Python applications"
+version = "0.2.1"
+description = "Lightweight Python logger with timestamped file output, caller stack tracing, and working-directory-scoped file utilities"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
