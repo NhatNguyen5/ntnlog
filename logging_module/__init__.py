@@ -17,7 +17,7 @@ from .file_utils import (
     file_verify_file,
 )
 
-__version__ = "0.1.2"
+__version__ = "0.2.0"
 __author__ = "Nathan T Nguyen"
 
 __all__ = [
