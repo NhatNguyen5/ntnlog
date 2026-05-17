@@ -1,13 +1,13 @@
 # Logging Module
 
-A comprehensive Python logging and file utility module designed for easy integration into FastAPI projects and other Python applications.
+A lightweight Python logging and file utility module for structured, timestamped logging with caller information and safe file operations.
 
 ## Features
 
 - **Flexible Logging**: Timestamp-based logging with caller information
 - **File Utilities**: Safe file operations with error handling
 - **Configuration**: Easy-to-configure logging and tracing options
-- **Error Management**: Comprehensive error tracking and reporting
+- **Error Management**: Structured error handling for file operations with descriptive error messages
 
 ## Installation
 
