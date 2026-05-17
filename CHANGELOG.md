@@ -8,8 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.2.0] - 2026-05-17
+### Added
+- GitHub Actions publish workflow with PyPI Trusted Publishing (no API tokens required)
+- GitHub Actions test workflow with Python 3.10–3.14 matrix CI
+- `CHANGELOG.md` to track all releases going forward
+
 ### Changed
-- Removed legacy `setup.py` after migrating packaging to `pyproject.toml`
+- Removed legacy `setup.py`; packaging is fully managed by `pyproject.toml`
 
 ## [0.1.3] - 2026-05-17
 ### Added

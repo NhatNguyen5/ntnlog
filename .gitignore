@@ -72,10 +72,7 @@ instance/
 docs/_build/
 
 # PyBuilder
-<<<<<<< HEAD
 .pybuilder/
-=======
->>>>>>> 8e9e6c3 (Initial commit: logging-module package)
 target/
 
 # Jupyter Notebook
@@ -86,7 +83,6 @@ profile_default/
 ipython_config.py
 
 # pyenv
-<<<<<<< HEAD
 #   For a library or package, you might want to ignore these files since the code is
 #   intended to run in multiple environments; otherwise, check them in:
 # .python-version
@@ -129,21 +125,12 @@ ipython_config.py
 .pixi
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-=======
-.python-version
-
-# pipenv
-Pipfile.lock
-
-# PEP 582
->>>>>>> 8e9e6c3 (Initial commit: logging-module package)
 __pypackages__/
 
 # Celery stuff
 celerybeat-schedule
 celerybeat.pid
 
-<<<<<<< HEAD
 # Redis
 *.rdb
 *.aof
@@ -157,17 +144,12 @@ rabbitmq-data/
 # ActiveMQ
 activemq-data/
 
-=======
->>>>>>> 8e9e6c3 (Initial commit: logging-module package)
 # SageMath parsed files
 *.sage.py
 
 # Environments
 .env
-<<<<<<< HEAD
 .envrc
-=======
->>>>>>> 8e9e6c3 (Initial commit: logging-module package)
 .venv
 env/
 venv/
@@ -193,7 +175,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-<<<<<<< HEAD
 # pytype static type analyzer
 .pytype/
 
@@ -214,11 +195,12 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
+#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
 #   that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#   and can be added to the global gitignore or merged into this file. However, if you prefer, 
+#   and can be added to the global gitignore or merged into this file. However, if you prefer,
 #   you could uncomment the following to ignore the entire vscode folder
-# .vscode/
+.vscode/
+
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
@@ -235,17 +217,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-=======
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
 
 # Project specific
 logs/
-*.txt
 .directory
->>>>>>> 8e9e6c3 (Initial commit: logging-module package)
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Claude Code
+.claude/
