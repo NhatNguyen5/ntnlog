@@ -15,14 +15,16 @@ jobs:
       - name: Clone wiki
         run: git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git wiki
 
-      - name: Update Home page
-        run: cp WIKI.md wiki/Home.md
+      - name: Update wiki pages
+        run: |
+          cp WIKI_HOME.md wiki/Home.md
+          cp WIKI_INSTRUCTIONS.md wiki/Instructions.md
 
       - name: Commit and push
         run: |
           cd wiki
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Home.md
+          git add Home.md Instructions.md
           git diff --staged --quiet || git commit -m "Update wiki from ${GITHUB_SHA::7}"
           git push
