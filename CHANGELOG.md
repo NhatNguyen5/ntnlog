@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-18
+### Added
+- `name` parameter on `Logger` for multi-instance identification — named loggers include a `[name]` bracket in every log entry between the timestamp and caller info
+- `ntnlog.utils` submodule with `get_working_dir()` and `resolve_path()` — working-directory-scoped path helpers with an exception-based API
+- GitHub Actions workflow to auto-update the GitHub wiki whenever source files change
+- `WIKI.md` as the authoritative wiki source, published as the Home page
+
+### Changed
+- Package renamed from `logging-module` to `ntnlog` — install name and import name now match (`pip install ntnlog` / `import ntnlog`)
+- Source files renamed to `ntn_` prefix (`ntn_logging.py`, `ntn_config.py`, `ntn_file_utils.py`)
+- Test suite expanded from 25 to 102 tests with full edge case coverage
+
 ## [0.2.1] - 2026-05-17
 ### Changed
 - Corrected package description to accurately reflect the module's scope: removed unsupported FastAPI claim, replaced overstated "error tracking" with accurate description of file-operation error handling

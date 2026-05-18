@@ -14,7 +14,7 @@ from .ntn_file_utils import (
 )
 from . import ntn_utils as utils
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 __author__ = "Nathan T Nguyen"
 
 __all__ = [
