@@ -73,6 +73,7 @@ class Logger:
         self,
         log_dir: str = DEFAULT_LOG_DIR,
         project_dir: str | None = None,
+        name: str | None = None,
     ):
         self._enable: bool = True
         self._enable_log_tracing: bool = False
@@ -80,6 +81,7 @@ class Logger:
         self._project_dir: str | None = (
             os.path.abspath(project_dir) if project_dir is not None else None
         )
+        self._name: str | None = name
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
@@ -108,7 +110,8 @@ class Logger:
         time_str = now.strftime("%H:%M:%S")
         timestamp = f"{date} {time_str}"
 
-        logistic_data = f"[{timestamp}][{self.get_caller_info()}]"
+        name_segment = f"[{self._name}]" if self._name else ""
+        logistic_data = f"[{timestamp}]{name_segment}[{self.get_caller_info()}]"
         padded_space = "".rjust(len(logistic_data) + 1)
         formatted_message = str(message).replace("\n", f"\n{padded_space}")
         log_entry = f"{logistic_data} {formatted_message}\n"

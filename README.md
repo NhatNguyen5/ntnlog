@@ -30,6 +30,12 @@ log("Debug info", print_to_console=True, console_message="DEBUG: Debug info")
 log.enable_log_tracing(True)
 log("Traced message")
 
+# Named loggers — useful when multiple instances log to the same file
+app_logger = Logger(name="app")
+worker_logger = Logger(name="worker")
+# Output: [2026-05-13 15:46:34][app][main.py:12] message
+#         [2026-05-13 15:46:34][worker][worker.py:8] message
+
 # Custom log directory
 log = Logger(log_dir="my_logs")
 
