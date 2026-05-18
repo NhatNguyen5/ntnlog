@@ -1,5 +1,5 @@
 import pytest
-from logging_module.config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
+from ntnlog.ntn_config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
 
 
 def test_global_logging_enabled():

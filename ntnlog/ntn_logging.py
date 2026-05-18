@@ -10,9 +10,9 @@
 import os
 import threading
 from datetime import datetime
-from logging_module.file_utils import FileUtilsError, file_verify_path
+from .ntn_file_utils import FileUtilsError, file_verify_path
 from inspect import getframeinfo, stack
-from logging_module.config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
+from .ntn_config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
 
 
 # ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ _IGNORED_FILES = {
     "__init__.py",
     "cli.py",
     "discover.py",
-    "my_logging.py",  # skip this file itself
+    "ntn_logging.py",  # skip this file itself
 }
 
 # ---------------------------------------------------------------------------

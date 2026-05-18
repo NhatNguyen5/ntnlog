@@ -14,7 +14,7 @@ Thank you for your interest in contributing!
 
 ```bash
 git clone https://github.com/yourusername/logging-module.git
-cd logging_module
+cd ntnlog
 pip install -e .
 ```
 

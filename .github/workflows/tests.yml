@@ -28,7 +28,7 @@ jobs:
 
     - name: Verify import
       run: |
-        python -c "from logging_module import Logger, GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED; print('✓ Import successful')"
+        python -c "from ntnlog import Logger, GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED; print('✓ Import successful')"
 
     - name: Run tests
       run: |

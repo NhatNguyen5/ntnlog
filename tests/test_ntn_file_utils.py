@@ -1,7 +1,7 @@
 import os
 import tempfile
 import pytest
-from logging_module.file_utils import (
+from ntnlog.ntn_file_utils import (
     FileUtilsError,
     FileExecutionError,
     FileOperator,

@@ -1,1 +1,1 @@
-# Tests for logging_module
+# Tests for ntnlog

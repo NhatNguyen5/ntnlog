@@ -3,8 +3,8 @@ import tempfile
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
-from logging_module.my_logging import Logger
-from logging_module.config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
+from ntnlog.ntn_logging import Logger
+from ntnlog.ntn_config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
 
 
 class TestLogger:
@@ -17,8 +17,8 @@ class TestLogger:
         assert self.Logger._enable is True
         assert self.Logger._enable_log_tracing is False
 
-    @patch('logging_module.my_logging.datetime')
-    @patch('logging_module.my_logging.file_verify_path')
+    @patch('ntnlog.ntn_logging.datetime')
+    @patch('ntnlog.ntn_logging.file_verify_path')
     @patch('builtins.open', new_callable=MagicMock)
     def test_log_basic(self, mock_open, mock_verify_path, mock_datetime):
         """Test basic logging functionality."""
@@ -36,8 +36,8 @@ class TestLogger:
                         # Check that open was called for writing
                         assert mock_open.call_count >= 1  # Single open in append mode
 
-    @patch('logging_module.my_logging.datetime')
-    @patch('logging_module.my_logging.file_verify_path')
+    @patch('ntnlog.ntn_logging.datetime')
+    @patch('ntnlog.ntn_logging.file_verify_path')
     @patch('builtins.open', new_callable=MagicMock)
     @patch('builtins.print')
     def test_log_with_console_output(self, mock_print, mock_open, mock_verify_path, mock_datetime):
@@ -53,8 +53,8 @@ class TestLogger:
                     # Check that print was called
                     mock_print.assert_called_once_with("Test message")
 
-    @patch('logging_module.my_logging.datetime')
-    @patch('logging_module.my_logging.file_verify_path')
+    @patch('ntnlog.ntn_logging.datetime')
+    @patch('ntnlog.ntn_logging.file_verify_path')
     @patch('builtins.open', new_callable=MagicMock)
     @patch('builtins.print')
     def test_log_with_custom_console_message(self, mock_print, mock_open, mock_verify_path, mock_datetime):
@@ -72,7 +72,7 @@ class TestLogger:
 
     def test_log_disabled_globally(self):
         """Test logging when globally disabled."""
-        with patch('logging_module.my_logging.GLOBAL_LOGGING_ENABLED', False):
+        with patch('ntnlog.ntn_logging.GLOBAL_LOGGING_ENABLED', False):
             with patch('builtins.open') as mock_open:
                 self.Logger.log("Test message")
                 mock_open.assert_not_called()
@@ -84,8 +84,8 @@ class TestLogger:
             self.Logger.log("Test message")
             mock_open.assert_not_called()
 
-    @patch('logging_module.my_logging.getframeinfo')
-    @patch('logging_module.my_logging.stack')
+    @patch('ntnlog.ntn_logging.getframeinfo')
+    @patch('ntnlog.ntn_logging.stack')
     def test_get_caller_info_basic(self, mock_stack, mock_getframeinfo):
         """Test getting basic caller info."""
         mock_frame = MagicMock()
@@ -97,8 +97,8 @@ class TestLogger:
         result = self.Logger.get_caller_info()
         assert result == "file.py:42"
 
-    @patch('logging_module.my_logging.getframeinfo')
-    @patch('logging_module.my_logging.stack')
+    @patch('ntnlog.ntn_logging.getframeinfo')
+    @patch('ntnlog.ntn_logging.stack')
     def test_get_caller_info_tracing_disabled(self, mock_stack, mock_getframeinfo):
         """Test caller info when tracing is disabled."""
         self.Logger.enable_log_tracing(False)
@@ -111,12 +111,12 @@ class TestLogger:
         result = self.Logger.get_caller_info()
         assert result == "file.py:42"
 
-    @patch('logging_module.my_logging.getframeinfo')
-    @patch('logging_module.my_logging.stack')
+    @patch('ntnlog.ntn_logging.getframeinfo')
+    @patch('ntnlog.ntn_logging.stack')
     def test_get_caller_info_tracing_enabled(self, mock_stack, mock_getframeinfo):
         """Test caller info when tracing is enabled."""
         self.Logger.enable_log_tracing(True)
-        with patch('logging_module.my_logging.GLOBAL_LOG_TRACING_ENABLED', True):
+        with patch('ntnlog.ntn_logging.GLOBAL_LOG_TRACING_ENABLED', True):
             mock_frame1 = MagicMock()
             mock_frame1.filename = "/path/to/file1.py"
             mock_frame1.lineno = 10

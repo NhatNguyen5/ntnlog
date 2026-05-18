@@ -1,118 +1,77 @@
-# Logging Module
+# ntnlog
 
-A lightweight Python logging and file utility module for structured, timestamped logging with caller information and safe file operations.
+Lightweight Python logger with timestamped file output, caller stack tracing, and working-directory-scoped file utilities. Next-To-Nothing setup — just import and log.
 
 ## Features
 
-- **Flexible Logging**: Timestamp-based logging with caller information
-- **File Utilities**: Safe file operations with error handling
-- **Configuration**: Easy-to-configure logging and tracing options
-- **Error Management**: Structured error handling for file operations with descriptive error messages
+- **Caller stack tracing**: Automatically records where in your code a log came from
+- **Timestamped file output**: Logs written to daily files with no configuration required
+- **File utilities**: Safe, working-directory-scoped file operations with error handling
+- **Thread-safe**: File writes are protected by a lock
 
 ## Installation
 
-### From PyPI (when published)
 ```bash
-pip install logging-module
-```
-
-### From Local Directory
-```bash
-pip install ./logging_module
-# or in editable mode for development
-pip install -e ./logging_module
+pip install ntnlog
 ```
 
 ## Quick Start
 
 ```python
-from logging_module import Logger
+from ntnlog import Logger
 
-# Create a logger instance
-app_logger = Logger()
+log = Logger()
 
-# Basic logging
-app_logger.log("Application started")
+log("Application started")
+log("Important message", print_to_console=True)
+log("Debug info", print_to_console=True, console_message="DEBUG: Debug info")
 
-# Log with console output
-app_logger.log("Important message", print_to_console=True)
+# Enable detailed call-stack tracing
+log.enable_log_tracing(True)
+log("Traced message")
 
-# Log with custom console message
-app_logger.log("Debug info", print_to_console=True, console_message="DEBUG: Debug info")
+# Custom log directory
+log = Logger(log_dir="my_logs")
 
-# Use as a callable (shortcut for log())
-app_logger("Quick log message")
-
-# Control logging behavior
-app_logger.enable_logging(False)  # Disable this logger instance
-app_logger.enable_log_tracing(True)  # Enable detailed tracing for this instance
-
-# Configure custom log directory
-custom_logger = Logger(log_dir="my_logs")
-
-# Configure project directory for better frame filtering
-project_logger = Logger(project_dir="/path/to/project")
+# Project-aware frame filtering
+log = Logger(project_dir="/path/to/project")
 ```
 
 ## Configuration
 
-### Logging Config (`config.py`)
-- `GLOBAL_LOGGING_ENABLED`: Enable/disable logging (default: `True`)
-- `GLOBAL_LOG_TRACING_ENABLED`: Enable/disable detailed tracing (default: `True`)
-
 ```python
-from logging_module.config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
+from ntnlog.ntn_config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
+```
+
+- `GLOBAL_LOGGING_ENABLED`: Master on/off switch for all loggers (default: `True`)
+- `GLOBAL_LOG_TRACING_ENABLED`: Master on/off switch for tracing (default: `True`)
+
+Per-instance controls:
+```python
+log.enable_logging(False)      # disable this logger
+log.enable_log_tracing(True)   # enable tracing for this logger
 ```
 
 ## Modules
 
-### Logger (`my_logging.py`)
-Main logging class providing timestamped, structured logging with caller information.
+### Logger (`ntn_logging.py`)
+Main logging class. Writes timestamped entries to `./logs/<date>_logging.txt` and optionally traces the full call stack to show exactly which file and line triggered the log.
 
-**Key Features:**
-- Automatic timestamping and file logging
-- Caller information tracking with configurable frame filtering
-- Configurable log directory and project directory
-- Thread-safe file operations
-- Configurable tracing depth
-- Console output options
-- Instance-level enable/disable controls
+### File Utilities (`ntn_file_utils.py`)
+Path and file verification scoped to the working directory:
+- `file_verify_path(base, directory)` — confirms a directory exists within the working dir
+- `file_verify_file(base, filename, operator)` — validates a file for read/write/execute
 
-### File Utilities (`file_utils.py`)
-Safe file operations with comprehensive error handling:
-- Path verification with security checks
-- File verification for different operations (read/write/execute)
-- Directory operations with working directory constraints
-
-### Configuration (`config.py`)
-Global configuration settings for logging behavior:
-- `GLOBAL_LOGGING_ENABLED`: Master switch for all logging
-- `GLOBAL_LOG_TRACING_ENABLED`: Master switch for tracing features
+### Configuration (`ntn_config.py`)
+Global flags controlling logging and tracing behaviour across all logger instances.
 
 ## Development
 
-### Prerequisites
-- Python 3.10+
-
-### Installing in Development Mode
 ```bash
-cd logging_module
-pip install -e .
-```
-
-### Running Tests
-```bash
-# Install test dependencies
 pip install -e ".[dev]"
-
-# Run all tests
 pytest
-
-# Run with verbose output
 pytest -v
-
-# Run specific test file
-pytest tests/test_my_logging.py
+pytest tests/test_ntn_logging.py
 ```
 
 ## License

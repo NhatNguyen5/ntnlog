@@ -1,11 +1,11 @@
 """
-Logging Module - Lightweight Python logger with timestamped file output,
+ntnlog - Lightweight Python logger with timestamped file output,
 caller stack tracing, and working-directory-scoped file utilities.
 """
 
-from .my_logging import Logger
-from .config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
-from .file_utils import (
+from .ntn_logging import Logger
+from .ntn_config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
+from .ntn_file_utils import (
     FileUtilsError,
     FileExecutionError,
     FileOperator,
