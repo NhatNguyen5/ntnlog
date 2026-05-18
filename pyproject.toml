@@ -39,6 +39,6 @@ python_functions = ["test_*"]
 [project.urls]
 CreatorGithub = "https://github.com/NhatNguyen5"
 Homepage = "https://pypi.org/project/ntnlog/"
-Documentation = "https://github.com/NhatNguyen5/ntnlog/wiki/Instructions"
+Documentation = "https://github.com/NhatNguyen5/ntnlog/wiki"
 Repository = "https://github.com/NhatNguyen5/ntnlog.git"
 Issues = "https://github.com/NhatNguyen5/ntnlog/issues"
