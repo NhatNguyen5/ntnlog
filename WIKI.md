@@ -114,6 +114,47 @@ File writes are protected by a per-instance `threading.Lock()`. Two separate log
 
 ---
 
+## Utils
+
+High-level, user-facing path helpers scoped to the working directory. Raises exceptions on failure (unlike the lower-level `file_verify_*` functions which return error strings).
+
+```python
+import ntnlog
+
+root = ntnlog.utils.get_working_dir()
+log_file = ntnlog.utils.resolve_path("logs/latest.log")
+```
+
+### `get_working_dir() → str`
+
+Returns the current working directory as an absolute path (`os.getcwd()`).
+
+### `resolve_path(path, must_exist=False) → str`
+
+Resolves `path` relative to the working directory and verifies it stays within it.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `path` | `str` | — | Relative or absolute path to resolve. |
+| `must_exist` | `bool` | `False` | If `True`, raises `FileNotFoundError` when the path doesn't exist. |
+
+Raises `ValueError` if the path escapes the working directory via `..` traversal.
+
+```python
+import ntnlog
+
+# Resolve a path (no existence check)
+path = ntnlog.utils.resolve_path("logs/app.txt")
+
+# Resolve and verify exists
+path = ntnlog.utils.resolve_path("config.json", must_exist=True)
+
+# Raises ValueError
+path = ntnlog.utils.resolve_path("../../etc/passwd")
+```
+
+---
+
 ## File Utilities
 
 ### `file_verify_path(working_directory, directory) → str`

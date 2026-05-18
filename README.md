@@ -68,6 +68,11 @@ Path and file verification scoped to the working directory:
 - `file_verify_path(base, directory)` — confirms a directory exists within the working dir
 - `file_verify_file(base, filename, operator)` — validates a file for read/write/execute
 
+### Utils (`ntn_utils.py`)
+Working-directory-scoped path helpers with a clean exception-based API:
+- `ntnlog.utils.get_working_dir()` — returns the current working directory
+- `ntnlog.utils.resolve_path(path, must_exist=False)` — resolves a path within the working directory, raises `ValueError` if it escapes
+
 ### Configuration (`ntn_config.py`)
 Global flags controlling logging and tracing behaviour across all logger instances.
 

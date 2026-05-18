@@ -12,6 +12,7 @@ from .ntn_file_utils import (
     file_verify_path,
     file_verify_file,
 )
+from . import ntn_utils as utils
 
 __version__ = "0.2.1"
 __author__ = "Nathan T Nguyen"
@@ -25,4 +26,5 @@ __all__ = [
     "FileOperator",
     "file_verify_path",
     "file_verify_file",
+    "utils",
 ]

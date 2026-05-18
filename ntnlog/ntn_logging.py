@@ -38,6 +38,7 @@ _IGNORED_FILES = {
     "cli.py",
     "discover.py",
     "ntn_logging.py",  # skip this file itself
+    "ntn_utils.py",
 }
 
 # ---------------------------------------------------------------------------
