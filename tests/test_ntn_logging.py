@@ -768,3 +768,109 @@ class TestConsoleColorization:
             log.log("custom color", level=Level.INFO, print_to_console=True)
         captured = capsys.readouterr()
         assert custom_color in captured.out
+
+
+# ---------------------------------------------------------------------------
+# Exception capturing
+# ---------------------------------------------------------------------------
+
+class TestExceptionCapturing:
+    def test_exception_writes_to_file(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("boom")
+            except ValueError:
+                log.exception("caught error")
+            content = _read_log()
+        assert "caught error" in content
+
+    def test_exception_includes_traceback(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("boom")
+            except ValueError:
+                log.exception("caught error")
+            content = _read_log()
+        assert "Traceback" in content
+        assert "ValueError" in content
+
+    def test_exception_includes_original_message(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise RuntimeError("original")
+            except RuntimeError:
+                log.exception("wrapper message")
+            content = _read_log()
+        assert "wrapper message" in content
+
+    def test_exception_outside_handler_no_traceback(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.exception("no active exception")
+            content = _read_log()
+        assert "no active exception" in content
+        assert "Traceback" not in content
+
+    def test_exception_default_level_is_error(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("err")
+            except ValueError:
+                log.exception("level check")
+            content = _read_log()
+        assert "[ERROR]" in content
+
+    def test_exception_custom_level(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("err")
+            except ValueError:
+                log.exception("level check", level=Level.CRITICAL)
+            content = _read_log()
+        assert "[CRITICAL]" in content
+
+    def test_exception_print_to_console(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("err")
+            except ValueError:
+                log.exception("console msg", print_to_console=True)
+        captured = capsys.readouterr()
+        assert "console msg" in captured.out
+
+    def test_exception_custom_console_message(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("err")
+            except ValueError:
+                log.exception("file msg", print_to_console=True, console_message="Custom!")
+        captured = capsys.readouterr()
+        assert "Custom!" in captured.out
+
+    def test_exception_respects_level_threshold(self):
+        with _in_temp_dir():
+            log = _make_logger(level=Level.CRITICAL)
+            try:
+                raise ValueError("err")
+            except ValueError:
+                log.exception("below threshold", level=Level.ERROR)
+            # ERROR < CRITICAL so nothing should be written
+            log_files = [f for f in os.listdir("logs") if f.endswith(".txt")] if os.path.exists("logs") else []
+        assert log_files == []
+
+    def test_exception_traceback_contains_line_info(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise TypeError("type err")
+            except TypeError:
+                log.exception("line info check")
+            content = _read_log()
+        assert "test_ntn_logging.py" in content

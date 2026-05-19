@@ -8,6 +8,8 @@
 #######################################################################
 
 import os
+import sys
+import traceback
 import threading
 from datetime import datetime
 from .ntn_file_utils import FileUtilsError, file_verify_path
@@ -172,6 +174,24 @@ class Logger:
 
     def enable_log_tracing(self, enable_log_tracing: bool) -> None:
         self._enable_log_tracing = enable_log_tracing
+
+    def exception(
+        self,
+        message: str,
+        level: Level = Level.ERROR,
+        print_to_console: bool = False,
+        console_message: str = "",
+    ) -> None:
+        if sys.exc_info()[0] is None:
+            tb_text = ""
+        else:
+            tb_text = "\n" + traceback.format_exc().rstrip()
+        self.log(
+            f"{message}{tb_text}",
+            level=level,
+            print_to_console=print_to_console,
+            console_message=console_message,
+        )
 
     # ------------------------------------------------------------------
     # Caller info
