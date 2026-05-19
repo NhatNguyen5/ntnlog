@@ -19,7 +19,10 @@ from .ntn_config import (
     GLOBAL_LOG_LEVEL,
     GLOBAL_MAX_BYTES,
     GLOBAL_BACKUP_COUNT,
+    GLOBAL_LOG_COLORS,
 )
+
+_ANSI_RESET = "\033[0m"
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +82,14 @@ class Logger:
     level : Level | None
         Minimum level threshold for this instance. Entries below this level
         are silently dropped. When ``None``, ``GLOBAL_LOG_LEVEL`` is used.
+    colorize : bool
+        When ``True``, console output is wrapped in ANSI color codes taken
+        from *colors* (or ``GLOBAL_LOG_COLORS`` when *colors* is ``None``).
+        File output is never colorized.
+    colors : dict[int, str] | None
+        Per-instance color map keyed by ``int(Level)``. Merged on top of
+        ``GLOBAL_LOG_COLORS`` at construction time; missing entries fall back
+        to the global value.
     """
 
     DEFAULT_LOG_DIR = "logs"
@@ -91,6 +102,8 @@ class Logger:
         level: Level | None = None,
         max_bytes: int | None = None,
         backup_count: int | None = None,
+        colorize: bool = False,
+        colors: dict[int, str] | None = None,
     ):
         self._enable: bool = True
         self._enable_log_tracing: bool = False
@@ -102,6 +115,8 @@ class Logger:
         self._level: Level | None = level
         self._max_bytes: int | None = max_bytes
         self._backup_count: int | None = backup_count
+        self._colorize: bool = colorize
+        self._colors: dict[int, str] = {**GLOBAL_LOG_COLORS, **(colors or {})}
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
@@ -146,7 +161,11 @@ class Logger:
         self._write_to_file(log_entry, date, time_str)
 
         if print_to_console:
-            print(message if console_message == "" else console_message)
+            text = message if console_message == "" else console_message
+            if self._colorize:
+                color = self._colors.get(int(level), "")
+                text = f"{color}{text}{_ANSI_RESET}"
+            print(text)
 
     def enable_logging(self, enable_logging: bool) -> None:
         self._enable = enable_logging
