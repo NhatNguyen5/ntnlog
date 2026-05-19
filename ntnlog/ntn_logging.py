@@ -7,6 +7,7 @@
 #
 #######################################################################
 
+import asyncio
 import os
 import sys
 import traceback
@@ -191,6 +192,38 @@ class Logger:
             level=level,
             print_to_console=print_to_console,
             console_message=console_message,
+        )
+
+    async def alog(
+        self,
+        message: str,
+        level: Level = Level.INFO,
+        print_to_console: bool = False,
+        console_message: str = "",
+    ) -> None:
+        await asyncio.to_thread(
+            self.log, message, level, print_to_console, console_message
+        )
+
+    async def aexception(
+        self,
+        message: str,
+        level: Level = Level.ERROR,
+        print_to_console: bool = False,
+        console_message: str = "",
+    ) -> None:
+        # Capture traceback now — sys.exc_info() is thread-local and will be
+        # empty inside the worker thread spawned by asyncio.to_thread().
+        if sys.exc_info()[0] is None:
+            tb_text = ""
+        else:
+            tb_text = "\n" + traceback.format_exc().rstrip()
+        await asyncio.to_thread(
+            self.log,
+            f"{message}{tb_text}",
+            level,
+            print_to_console,
+            console_message,
         )
 
     # ------------------------------------------------------------------

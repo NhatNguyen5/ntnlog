@@ -874,3 +874,114 @@ class TestExceptionCapturing:
                 log.exception("line info check")
             content = _read_log()
         assert "test_ntn_logging.py" in content
+
+
+# ---------------------------------------------------------------------------
+# Async support
+# ---------------------------------------------------------------------------
+
+import asyncio as _asyncio
+
+
+class TestAsyncSupport:
+    def test_alog_writes_to_file(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            _asyncio.run(log.alog("async message"))
+            content = _read_log()
+        assert "async message" in content
+
+    def test_alog_default_level_is_info(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            _asyncio.run(log.alog("async info"))
+            content = _read_log()
+        assert "[INFO]" in content
+
+    def test_alog_custom_level(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            _asyncio.run(log.alog("async warn", level=Level.WARNING))
+            content = _read_log()
+        assert "[WARNING]" in content
+
+    def test_alog_respects_level_threshold(self):
+        with _in_temp_dir():
+            log = _make_logger(level=Level.ERROR)
+            _asyncio.run(log.alog("below threshold", level=Level.DEBUG))
+            log_files = [f for f in os.listdir("logs") if f.endswith(".txt")] if os.path.exists("logs") else []
+        assert log_files == []
+
+    def test_alog_print_to_console(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            _asyncio.run(log.alog("async console", print_to_console=True))
+        captured = capsys.readouterr()
+        assert "async console" in captured.out
+
+    def test_alog_custom_console_message(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            _asyncio.run(log.alog("file msg", print_to_console=True, console_message="Hey async!"))
+        captured = capsys.readouterr()
+        assert "Hey async!" in captured.out
+
+    def test_aexception_writes_to_file(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("async boom")
+            except ValueError:
+                _asyncio.run(log.aexception("async caught"))
+            content = _read_log()
+        assert "async caught" in content
+
+    def test_aexception_includes_traceback(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise RuntimeError("async runtime")
+            except RuntimeError:
+                _asyncio.run(log.aexception("async exc"))
+            content = _read_log()
+        assert "Traceback" in content
+        assert "RuntimeError" in content
+
+    def test_aexception_outside_handler_no_traceback(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            _asyncio.run(log.aexception("no active exc"))
+            content = _read_log()
+        assert "no active exc" in content
+        assert "Traceback" not in content
+
+    def test_aexception_default_level_is_error(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("err")
+            except ValueError:
+                _asyncio.run(log.aexception("async level check"))
+            content = _read_log()
+        assert "[ERROR]" in content
+
+    def test_alog_concurrent_writes_no_errors(self):
+        with _in_temp_dir():
+            log = _make_logger()
+
+            async def run_many():
+                await _asyncio.gather(*[log.alog(f"msg {i}") for i in range(20)])
+
+            _asyncio.run(run_many())
+            content = _read_log()
+        assert content.count("msg") >= 20
+
+    def test_alog_is_coroutine(self):
+        log = Logger()
+        import inspect
+        assert inspect.iscoroutinefunction(log.alog)
+
+    def test_aexception_is_coroutine(self):
+        log = Logger()
+        import inspect
+        assert inspect.iscoroutinefunction(log.aexception)
