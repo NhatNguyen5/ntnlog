@@ -46,6 +46,7 @@ def _read_log(log_dir="logs"):
 
 class TestInit:
     def test_defaults(self):
+        from ntnlog.ntn_config import GLOBAL_LOG_COLORS
         log = Logger()
         assert log._enable is True
         assert log._enable_log_tracing is False
@@ -53,6 +54,8 @@ class TestInit:
         assert log._project_dir is None
         assert log._name is None
         assert log._level is None
+        assert log._colorize is False
+        assert log._colors == GLOBAL_LOG_COLORS
 
     def test_name_stored(self):
         log = Logger(name="app")
@@ -86,6 +89,240 @@ class TestInit:
     def test_level_none_by_default(self):
         log = Logger()
         assert log._level is None
+
+
+# ---------------------------------------------------------------------------
+# Logger(level=...) string coercion
+# ---------------------------------------------------------------------------
+
+class TestParseLevelInit:
+    def test_level_enum_stored_directly(self):
+        log = Logger(level=Level.WARNING)
+        assert log._level is Level.WARNING
+
+    def test_level_string_uppercase(self):
+        log = Logger(level="WARNING")
+        assert log._level is Level.WARNING
+
+    def test_level_string_lowercase(self):
+        log = Logger(level="warning")
+        assert log._level is Level.WARNING
+
+    def test_level_string_mixed_case(self):
+        log = Logger(level="Warning")
+        assert log._level is Level.WARNING
+
+    def test_level_warn_alias(self):
+        log = Logger(level="WARN")
+        assert log._level is Level.WARNING
+
+    def test_level_warn_alias_lowercase(self):
+        log = Logger(level="warn")
+        assert log._level is Level.WARNING
+
+    def test_level_string_info(self):
+        log = Logger(level="INFO")
+        assert log._level is Level.INFO
+
+    def test_level_string_error(self):
+        log = Logger(level="ERROR")
+        assert log._level is Level.ERROR
+
+    def test_level_string_debug(self):
+        log = Logger(level="DEBUG")
+        assert log._level is Level.DEBUG
+
+    def test_level_string_trace(self):
+        log = Logger(level="TRACE")
+        assert log._level is Level.TRACE
+
+    def test_level_string_critical(self):
+        log = Logger(level="CRITICAL")
+        assert log._level is Level.CRITICAL
+
+    def test_level_none_stays_none(self):
+        log = Logger(level=None)
+        assert log._level is None
+
+    def test_level_invalid_string_raises(self):
+        with pytest.raises(ValueError, match="Unknown log level"):
+            Logger(level="VERBOSE")
+
+    def test_level_invalid_string_mentions_valid_levels(self):
+        with pytest.raises(ValueError, match="TRACE"):
+            Logger(level="GARBAGE")
+
+    def test_string_level_filters_correctly(self):
+        with _in_temp_dir():
+            log = _make_logger(level="ERROR")
+            log.log("dropped", level=Level.WARNING)
+            log.log("kept", level=Level.ERROR)
+            content = _read_log()
+        assert "kept" in content
+        assert "dropped" not in content
+
+
+# ---------------------------------------------------------------------------
+# log() / __call__ / exception / alog / aexception — level is last param
+# ---------------------------------------------------------------------------
+
+class TestLevelParamOrder:
+    """Verify that level sits at the end and print_to_console is still 2nd."""
+
+    # log()
+
+    def test_log_positional_print_to_console(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("msg", True)   # print_to_console=True, level defaults to INFO
+        assert "msg" in capsys.readouterr().out
+
+    def test_log_positional_console_message(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("msg", True, "Hey")   # print_to_console=True, console_message="Hey"
+        assert "Hey" in capsys.readouterr().out
+
+    def test_log_positional_all_params(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("msg", True, "Hey", Level.WARNING)   # all four positional
+            content = _read_log()
+        assert "[WARNING]" in content
+        assert "Hey" in capsys.readouterr().out
+
+    def test_log_level_keyword_still_works(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("msg", level=Level.ERROR)
+            content = _read_log()
+        assert "[ERROR]" in content
+
+    def test_log_omit_level_defaults_to_info(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("msg")
+            content = _read_log()
+        assert "[INFO]" in content
+
+    # __call__
+
+    def test_call_positional_print_to_console(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log("msg", True)
+        assert "msg" in capsys.readouterr().out
+
+    def test_call_positional_console_message(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log("msg", True, "Hey")
+        assert "Hey" in capsys.readouterr().out
+
+    def test_call_positional_all_params(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log("msg", True, "Hey", Level.ERROR)
+            content = _read_log()
+        assert "[ERROR]" in content
+        assert "Hey" in capsys.readouterr().out
+
+    def test_call_omit_level_defaults_to_info(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            log("msg")
+            content = _read_log()
+        assert "[INFO]" in content
+
+    # exception()
+
+    def test_exception_positional_print_to_console(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("e")
+            except ValueError:
+                log.exception("msg", True)
+        assert "msg" in capsys.readouterr().out
+
+    def test_exception_positional_all_params(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("e")
+            except ValueError:
+                log.exception("msg", False, "", Level.CRITICAL)
+            content = _read_log()
+        assert "[CRITICAL]" in content
+
+    def test_exception_omit_level_defaults_to_error(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("e")
+            except ValueError:
+                log.exception("msg")
+            content = _read_log()
+        assert "[ERROR]" in content
+
+    # alog()
+
+    def test_alog_positional_print_to_console(self, capsys):
+        import asyncio
+        with _in_temp_dir():
+            log = _make_logger()
+            asyncio.run(log.alog("msg", True))
+        assert "msg" in capsys.readouterr().out
+
+    def test_alog_positional_all_params(self):
+        import asyncio
+        with _in_temp_dir():
+            log = _make_logger()
+            asyncio.run(log.alog("msg", False, "", Level.WARNING))
+            content = _read_log()
+        assert "[WARNING]" in content
+
+    def test_alog_omit_level_defaults_to_info(self):
+        import asyncio
+        with _in_temp_dir():
+            log = _make_logger()
+            asyncio.run(log.alog("msg"))
+            content = _read_log()
+        assert "[INFO]" in content
+
+    # aexception()
+
+    def test_aexception_positional_print_to_console(self, capsys):
+        import asyncio
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise RuntimeError("e")
+            except RuntimeError:
+                asyncio.run(log.aexception("msg", True))
+        assert "msg" in capsys.readouterr().out
+
+    def test_aexception_positional_all_params(self):
+        import asyncio
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise RuntimeError("e")
+            except RuntimeError:
+                asyncio.run(log.aexception("msg", False, "", Level.CRITICAL))
+            content = _read_log()
+        assert "[CRITICAL]" in content
+
+    def test_aexception_omit_level_defaults_to_error(self):
+        import asyncio
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise RuntimeError("e")
+            except RuntimeError:
+                asyncio.run(log.aexception("msg"))
+            content = _read_log()
+        assert "[ERROR]" in content
 
 
 # ---------------------------------------------------------------------------
