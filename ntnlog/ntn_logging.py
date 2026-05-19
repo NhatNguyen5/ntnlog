@@ -12,7 +12,12 @@ import threading
 from datetime import datetime
 from .ntn_file_utils import FileUtilsError, file_verify_path
 from inspect import getframeinfo, stack
-from .ntn_config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
+from .ntn_levels import Level
+from .ntn_config import (
+    GLOBAL_LOGGING_ENABLED,
+    GLOBAL_LOG_TRACING_ENABLED,
+    GLOBAL_LOG_LEVEL,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -66,6 +71,12 @@ class Logger:
         ``site-packages``) are considered "your code". When ``None`` the
         module falls back to the blocklist defined by ``_IGNORED_FILES`` /
         ``_IGNORED_PREFIXES``.
+    name : str | None
+        Optional label for this logger instance. Appears as a bracket segment
+        in every log entry.
+    level : Level | None
+        Minimum level threshold for this instance. Entries below this level
+        are silently dropped. When ``None``, ``GLOBAL_LOG_LEVEL`` is used.
     """
 
     DEFAULT_LOG_DIR = "logs"
@@ -75,6 +86,7 @@ class Logger:
         log_dir: str = DEFAULT_LOG_DIR,
         project_dir: str | None = None,
         name: str | None = None,
+        level: Level | None = None,
     ):
         self._enable: bool = True
         self._enable_log_tracing: bool = False
@@ -83,6 +95,7 @@ class Logger:
             os.path.abspath(project_dir) if project_dir is not None else None
         )
         self._name: str | None = name
+        self._level: Level | None = level
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
@@ -92,18 +105,24 @@ class Logger:
     def __call__(
         self,
         message: str,
+        level: Level = Level.INFO,
         print_to_console: bool = False,
         console_message: str = "",
     ) -> None:
-        self.log(message, print_to_console=print_to_console, console_message=console_message)
+        self.log(message, level=level, print_to_console=print_to_console, console_message=console_message)
 
     def log(
         self,
         message: str,
+        level: Level = Level.INFO,
         print_to_console: bool = False,
         console_message: str = "",
     ) -> None:
         if not GLOBAL_LOGGING_ENABLED or not self._enable:
+            return
+
+        threshold = self._level if self._level is not None else GLOBAL_LOG_LEVEL
+        if level < threshold:
             return
 
         now = datetime.now()
@@ -111,8 +130,9 @@ class Logger:
         time_str = now.strftime("%H:%M:%S")
         timestamp = f"{date} {time_str}"
 
-        name_segment = f"[{self._name}]" if self._name else ""
-        logistic_data = f"[{timestamp}]{name_segment}[{self.get_caller_info()}]"
+        name_segment  = f"[{self._name}]" if self._name else ""
+        level_segment = f"[{level.name}]"
+        logistic_data = f"[{timestamp}]{level_segment}{name_segment}[{self.get_caller_info()}]"
         padded_space = "".rjust(len(logistic_data) + 1)
         formatted_message = str(message).replace("\n", f"\n{padded_space}")
         log_entry = f"{logistic_data} {formatted_message}\n"
