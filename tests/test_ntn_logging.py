@@ -6,6 +6,7 @@ from unittest.mock import patch, MagicMock, call
 from datetime import datetime
 from ntnlog.ntn_logging import Logger, _IGNORED_FILES, _IGNORED_PREFIXES
 from ntnlog.ntn_config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
+from ntnlog.ntn_levels import Level
 
 
 # ---------------------------------------------------------------------------
@@ -51,6 +52,7 @@ class TestInit:
         assert log._log_dir == "logs"
         assert log._project_dir is None
         assert log._name is None
+        assert log._level is None
 
     def test_name_stored(self):
         log = Logger(name="app")
@@ -76,6 +78,14 @@ class TestInit:
     def test_lock_created(self):
         log = Logger()
         assert isinstance(log._lock, type(threading.Lock()))
+
+    def test_level_stored(self):
+        log = Logger(level=Level.WARNING)
+        assert log._level == Level.WARNING
+
+    def test_level_none_by_default(self):
+        log = Logger()
+        assert log._level is None
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +162,7 @@ class TestLogFormat:
             log = _make_logger(name="svc")
             log.log("hello")
             content = _read_log()
-            # Format: [timestamp][svc][caller] message
+            # Format: [timestamp][LEVEL][svc][caller] message
             name_pos = content.index("[svc]")
             caller_pos = content.index("]", name_pos + 1)
             assert name_pos < caller_pos
@@ -163,16 +173,17 @@ class TestLogFormat:
             log.log("hello")
             content = _read_log()
             log_line = [l for l in content.splitlines() if "hello" in l][0]
-            # [timestamp][caller] — exactly 2 opening brackets
-            assert log_line.count("[") == 2
+            # [timestamp][LEVEL][caller] — exactly 3 opening brackets
+            assert log_line.count("[") == 3
 
-    def test_named_logger_three_brackets(self):
+    def test_named_logger_four_brackets(self):
         with _in_temp_dir():
             log = _make_logger(name="x")
             log.log("hello")
             content = _read_log()
             log_line = [l for l in content.splitlines() if "hello" in l][0]
-            assert log_line.count("[") == 3
+            # [timestamp][LEVEL][name][caller] — exactly 4 opening brackets
+            assert log_line.count("[") == 4
 
     def test_header_written_on_first_entry(self):
         with _in_temp_dir():
@@ -253,13 +264,19 @@ class TestCallable:
         log = Logger()
         with patch.object(log, "log") as mock_log:
             log("msg", print_to_console=True, console_message="c")
-            mock_log.assert_called_once_with("msg", print_to_console=True, console_message="c")
+            mock_log.assert_called_once_with("msg", level=Level.INFO, print_to_console=True, console_message="c")
 
     def test_call_default_args(self):
         log = Logger()
         with patch.object(log, "log") as mock_log:
             log("msg")
-            mock_log.assert_called_once_with("msg", print_to_console=False, console_message="")
+            mock_log.assert_called_once_with("msg", level=Level.INFO, print_to_console=False, console_message="")
+
+    def test_call_with_level(self):
+        log = Logger()
+        with patch.object(log, "log") as mock_log:
+            log("msg", level=Level.ERROR)
+            mock_log.assert_called_once_with("msg", level=Level.ERROR, print_to_console=False, console_message="")
 
 
 # ---------------------------------------------------------------------------
@@ -408,3 +425,154 @@ class TestThreadSafety:
                 t.join()
 
             assert errors == []
+
+
+# ---------------------------------------------------------------------------
+# Log Levels — Level enum
+# ---------------------------------------------------------------------------
+
+class TestLevel:
+    def test_trace_value(self):
+        assert Level.TRACE == 5
+
+    def test_debug_value(self):
+        assert Level.DEBUG == 10
+
+    def test_info_value(self):
+        assert Level.INFO == 20
+
+    def test_warning_value(self):
+        assert Level.WARNING == 30
+
+    def test_error_value(self):
+        assert Level.ERROR == 40
+
+    def test_critical_value(self):
+        assert Level.CRITICAL == 50
+
+    def test_ordering(self):
+        assert Level.TRACE < Level.DEBUG < Level.INFO < Level.WARNING < Level.ERROR < Level.CRITICAL
+
+    def test_is_int(self):
+        assert isinstance(Level.INFO, int)
+
+    def test_name_attribute(self):
+        assert Level.ERROR.name == "ERROR"
+        assert Level.WARNING.name == "WARNING"
+        assert Level.INFO.name == "INFO"
+
+    def test_importable_from_ntnlog(self):
+        import ntnlog
+        assert ntnlog.Level.INFO == 20
+
+
+# ---------------------------------------------------------------------------
+# Log Levels — filtering behavior
+# ---------------------------------------------------------------------------
+
+class TestLogLevelFiltering:
+    def test_entry_below_threshold_not_written(self):
+        log = Logger(level=Level.WARNING)
+        with patch("builtins.open") as mock_open:
+            with patch("ntnlog.ntn_logging.file_verify_path", return_value="/tmp"):
+                log.log("silent", level=Level.INFO)
+                mock_open.assert_not_called()
+
+    def test_entry_at_threshold_is_written(self):
+        with _in_temp_dir():
+            log = _make_logger(level=Level.WARNING)
+            log.log("visible", level=Level.WARNING)
+            content = _read_log()
+            assert "visible" in content
+
+    def test_entry_above_threshold_is_written(self):
+        with _in_temp_dir():
+            log = _make_logger(level=Level.WARNING)
+            log.log("critical", level=Level.CRITICAL)
+            content = _read_log()
+            assert "critical" in content
+
+    def test_trace_below_info_default_not_written(self):
+        log = Logger()
+        with patch("builtins.open") as mock_open:
+            with patch("ntnlog.ntn_logging.file_verify_path", return_value="/tmp"):
+                log.log("trace msg", level=Level.TRACE)
+                mock_open.assert_not_called()
+
+    def test_info_at_default_threshold_written(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("info msg", level=Level.INFO)
+            content = _read_log()
+            assert "info msg" in content
+
+    def test_global_level_used_when_instance_level_is_none(self):
+        log = Logger()
+        assert log._level is None
+        with patch("ntnlog.ntn_logging.GLOBAL_LOG_LEVEL", Level.CRITICAL):
+            with patch("builtins.open") as mock_open:
+                with patch("ntnlog.ntn_logging.file_verify_path", return_value="/tmp"):
+                    log.log("below", level=Level.ERROR)
+                    mock_open.assert_not_called()
+
+    def test_instance_level_overrides_global(self):
+        with _in_temp_dir():
+            log = _make_logger(level=Level.TRACE)
+            with patch("ntnlog.ntn_logging.GLOBAL_LOG_LEVEL", Level.CRITICAL):
+                log.log("trace visible", level=Level.TRACE)
+            content = _read_log()
+            assert "trace visible" in content
+
+
+# ---------------------------------------------------------------------------
+# Log Levels — output format
+# ---------------------------------------------------------------------------
+
+class TestLogLevelFormat:
+    def test_level_name_in_file_output(self):
+        with _in_temp_dir():
+            log = _make_logger(level=Level.TRACE)
+            log.log("msg", level=Level.ERROR)
+            content = _read_log()
+            assert "[ERROR]" in content
+
+    def test_warning_level_name_in_output(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("msg", level=Level.WARNING)
+            content = _read_log()
+            assert "[WARNING]" in content
+
+    def test_info_level_name_in_output(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("msg", level=Level.INFO)
+            content = _read_log()
+            assert "[INFO]" in content
+
+    def test_trace_level_name_in_output(self):
+        with _in_temp_dir():
+            log = _make_logger(level=Level.TRACE)
+            log.log("msg", level=Level.TRACE)
+            content = _read_log()
+            assert "[TRACE]" in content
+
+    def test_level_bracket_between_timestamp_and_caller_unnamed(self):
+        import re
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("msg")
+            content = _read_log()
+            log_line = [l for l in content.splitlines() if "msg" in l][0]
+            # [YYYY-MM-DD HH:MM:SS][LEVEL][caller] message
+            assert re.match(r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]\[INFO\]\[", log_line)
+
+    def test_level_bracket_between_timestamp_and_name(self):
+        import re
+        with _in_temp_dir():
+            log = _make_logger(name="app")
+            log.log("msg")
+            content = _read_log()
+            log_line = [l for l in content.splitlines() if "msg" in l][0]
+            # [YYYY-MM-DD HH:MM:SS][LEVEL][name][caller] message
+            assert re.match(r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]\[INFO\]\[app\]\[", log_line)
