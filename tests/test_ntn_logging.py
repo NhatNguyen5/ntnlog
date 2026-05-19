@@ -683,3 +683,88 @@ class TestLogRotation:
         log = Logger()
         assert log._max_bytes is None
         assert log._backup_count is None
+
+
+# ---------------------------------------------------------------------------
+# Console colorization
+# ---------------------------------------------------------------------------
+
+class TestConsoleColorization:
+    def test_colorize_default_is_false(self):
+        log = Logger()
+        assert log._colorize is False
+
+    def test_colorize_can_be_set_true(self):
+        log = Logger(colorize=True)
+        assert log._colorize is True
+
+    def test_colors_default_merges_global(self):
+        from ntnlog.ntn_config import GLOBAL_LOG_COLORS
+        log = Logger()
+        assert log._colors == GLOBAL_LOG_COLORS
+
+    def test_colors_custom_overrides_entry(self):
+        custom = {int(Level.ERROR): "\033[91m"}
+        log = Logger(colors=custom)
+        assert log._colors[int(Level.ERROR)] == "\033[91m"
+
+    def test_colors_custom_does_not_remove_other_levels(self):
+        from ntnlog.ntn_config import GLOBAL_LOG_COLORS
+        custom = {int(Level.ERROR): "\033[91m"}
+        log = Logger(colors=custom)
+        for lvl in Level:
+            if int(lvl) != int(Level.ERROR):
+                assert log._colors[int(lvl)] == GLOBAL_LOG_COLORS[int(lvl)]
+
+    def test_colorize_false_no_ansi_in_console_output(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger(colorize=False)
+            log.log("plain", print_to_console=True)
+        captured = capsys.readouterr()
+        assert "\033[" not in captured.out
+
+    def test_colorize_true_wraps_output_with_ansi(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger(colorize=True)
+            log.log("colorful", print_to_console=True)
+        captured = capsys.readouterr()
+        assert "\033[" in captured.out
+        assert "\033[0m" in captured.out
+
+    def test_colorize_uses_level_color(self, capsys):
+        from ntnlog.ntn_config import GLOBAL_LOG_COLORS
+        with _in_temp_dir():
+            log = _make_logger(colorize=True)
+            log.log("err msg", level=Level.ERROR, print_to_console=True)
+        captured = capsys.readouterr()
+        assert GLOBAL_LOG_COLORS[int(Level.ERROR)] in captured.out
+
+    def test_colorize_console_message_also_colorized(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger(colorize=True)
+            log.log("msg", print_to_console=True, console_message="Hey!")
+        captured = capsys.readouterr()
+        assert "Hey!" in captured.out
+        assert "\033[" in captured.out
+
+    def test_colorize_does_not_write_ansi_to_file(self):
+        with _in_temp_dir():
+            log = _make_logger(colorize=True)
+            log.log("file entry", print_to_console=False)
+            content = _read_log()
+        assert "\033[" not in content
+
+    def test_colorize_reset_code_appended(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger(colorize=True)
+            log.log("reset test", print_to_console=True)
+        captured = capsys.readouterr()
+        assert captured.out.rstrip("\n").endswith("\033[0m")
+
+    def test_colorize_custom_color_applied(self, capsys):
+        custom_color = "\033[95m"
+        with _in_temp_dir():
+            log = _make_logger(colorize=True, colors={int(Level.INFO): custom_color})
+            log.log("custom color", level=Level.INFO, print_to_console=True)
+        captured = capsys.readouterr()
+        assert custom_color in captured.out
