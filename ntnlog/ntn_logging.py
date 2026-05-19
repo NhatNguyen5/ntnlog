@@ -82,9 +82,11 @@ class Logger:
     name : str | None
         Optional label for this logger instance. Appears as a bracket segment
         in every log entry.
-    level : Level | None
-        Minimum level threshold for this instance. Entries below this level
-        are silently dropped. When ``None``, ``GLOBAL_LOG_LEVEL`` is used.
+    level : Level | str | None
+        Minimum level threshold for this instance. Accepts a ``Level`` member
+        or a case-insensitive string name (e.g. ``"warn"``, ``"WARNING"``).
+        Entries below this level are silently dropped. When ``None``,
+        ``GLOBAL_LOG_LEVEL`` is used.
     colorize : bool
         When ``True``, console output is wrapped in ANSI color codes taken
         from *colors* (or ``GLOBAL_LOG_COLORS`` when *colors* is ``None``).
@@ -97,12 +99,28 @@ class Logger:
 
     DEFAULT_LOG_DIR = "logs"
 
+    _LEVEL_ALIASES: dict[str, str] = {"WARN": "WARNING"}
+
+    @staticmethod
+    def _parse_level(value: "Level | str | None") -> "Level | None":
+        if value is None:
+            return None
+        if isinstance(value, Level):
+            return value
+        name = str(value).upper()
+        name = Logger._LEVEL_ALIASES.get(name, name)
+        try:
+            return Level[name]
+        except KeyError:
+            valid = [lvl.name for lvl in Level]
+            raise ValueError(f"Unknown log level {value!r}. Valid levels: {valid}")
+
     def __init__(
         self,
         log_dir: str = DEFAULT_LOG_DIR,
         project_dir: str | None = None,
         name: str | None = None,
-        level: Level | None = None,
+        level: "Level | str | None" = None,
         max_bytes: int | None = None,
         backup_count: int | None = None,
         colorize: bool = False,
@@ -115,7 +133,7 @@ class Logger:
             os.path.abspath(project_dir) if project_dir is not None else None
         )
         self._name: str | None = name
-        self._level: Level | None = level
+        self._level: Level | None = self._parse_level(level)
         self._max_bytes: int | None = max_bytes
         self._backup_count: int | None = backup_count
         self._colorize: bool = colorize
@@ -129,18 +147,18 @@ class Logger:
     def __call__(
         self,
         message: str,
-        level: Level = Level.INFO,
         print_to_console: bool = False,
         console_message: str = "",
+        level: Level = Level.INFO,
     ) -> None:
-        self.log(message, level=level, print_to_console=print_to_console, console_message=console_message)
+        self.log(message, print_to_console=print_to_console, console_message=console_message, level=level)
 
     def log(
         self,
         message: str,
-        level: Level = Level.INFO,
         print_to_console: bool = False,
         console_message: str = "",
+        level: Level = Level.INFO,
     ) -> None:
         if not GLOBAL_LOGGING_ENABLED or not self._enable:
             return
@@ -179,9 +197,9 @@ class Logger:
     def exception(
         self,
         message: str,
-        level: Level = Level.ERROR,
         print_to_console: bool = False,
         console_message: str = "",
+        level: Level = Level.ERROR,
     ) -> None:
         if sys.exc_info()[0] is None:
             tb_text = ""
@@ -197,20 +215,20 @@ class Logger:
     async def alog(
         self,
         message: str,
-        level: Level = Level.INFO,
         print_to_console: bool = False,
         console_message: str = "",
+        level: Level = Level.INFO,
     ) -> None:
         await asyncio.to_thread(
-            self.log, message, level, print_to_console, console_message
+            self.log, message, print_to_console, console_message, level
         )
 
     async def aexception(
         self,
         message: str,
-        level: Level = Level.ERROR,
         print_to_console: bool = False,
         console_message: str = "",
+        level: Level = Level.ERROR,
     ) -> None:
         # Capture traceback now — sys.exc_info() is thread-local and will be
         # empty inside the worker thread spawned by asyncio.to_thread().
@@ -221,9 +239,9 @@ class Logger:
         await asyncio.to_thread(
             self.log,
             f"{message}{tb_text}",
-            level,
             print_to_console,
             console_message,
+            level,
         )
 
     # ------------------------------------------------------------------
