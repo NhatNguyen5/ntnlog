@@ -576,3 +576,110 @@ class TestLogLevelFormat:
             log_line = [l for l in content.splitlines() if "msg" in l][0]
             # [YYYY-MM-DD HH:MM:SS][LEVEL][name][caller] message
             assert re.match(r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]\[INFO\]\[app\]\[", log_line)
+
+
+# ---------------------------------------------------------------------------
+# Log rotation
+# ---------------------------------------------------------------------------
+
+class TestLogRotation:
+    def test_rotation_creates_backup_when_size_exceeded(self):
+        with _in_temp_dir():
+            log = _make_logger(max_bytes=50, backup_count=1)
+            # Write enough to exceed 50 bytes
+            for _ in range(5):
+                log.log("x" * 20)
+            log_files = os.listdir("logs")
+            assert any(f.endswith(".txt.1") for f in log_files)
+
+    def test_rotation_fresh_file_has_header(self):
+        with _in_temp_dir():
+            log = _make_logger(max_bytes=50, backup_count=1)
+            for _ in range(6):
+                log.log("x" * 20)
+            content = _read_log()
+            assert "Log file created on" in content
+
+    def test_no_rotation_below_threshold(self):
+        with _in_temp_dir():
+            log = _make_logger(max_bytes=10_000_000, backup_count=1)
+            log.log("small entry")
+            log_files = os.listdir("logs")
+            assert not any(f.endswith(".txt.1") for f in log_files)
+
+    def test_backup_shift_with_backup_count_2(self):
+        with _in_temp_dir():
+            log = _make_logger(max_bytes=50, backup_count=2)
+            # Trigger two rotations
+            for _ in range(12):
+                log.log("x" * 20)
+            log_files = os.listdir("logs")
+            assert any(f.endswith(".txt.2") for f in log_files)
+
+    def test_files_beyond_backup_count_deleted(self):
+        with _in_temp_dir():
+            log = _make_logger(max_bytes=50, backup_count=1)
+            # Trigger enough rotations to verify no .2 is left
+            for _ in range(15):
+                log.log("x" * 20)
+            log_files = os.listdir("logs")
+            assert not any(f.endswith(".txt.2") for f in log_files)
+
+    def test_backup_count_zero_deletes_current(self):
+        with _in_temp_dir():
+            log = _make_logger(max_bytes=50, backup_count=0)
+            for _ in range(5):
+                log.log("x" * 20)
+            log_files = os.listdir("logs")
+            # No .1 backup should ever be created
+            assert not any(f.endswith(".txt.1") for f in log_files)
+            # Current file should still exist (written after deletion)
+            assert any(f.endswith(".txt") and not f.endswith(".txt.1") for f in log_files)
+
+    def test_per_instance_max_bytes_overrides_global(self):
+        with _in_temp_dir():
+            # Use a tiny max_bytes to trigger rotation quickly
+            log = _make_logger(max_bytes=100, backup_count=1)
+            for _ in range(5):
+                log.log("x" * 30)
+            log_files = os.listdir("logs")
+            assert any(f.endswith(".txt.1") for f in log_files)
+
+    def test_global_max_bytes_used_when_instance_none(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            assert log._max_bytes is None
+            # Write a small amount — well under 10MB global default
+            log.log("small")
+            log_files = os.listdir("logs")
+            assert not any(f.endswith(".txt.1") for f in log_files)
+
+    def test_rotation_thread_safe_with_tiny_max_bytes(self):
+        with _in_temp_dir():
+            log = _make_logger(max_bytes=100, backup_count=2)
+            errors = []
+
+            def write():
+                try:
+                    for _ in range(20):
+                        log.log("concurrent rotation test")
+                except Exception as e:
+                    errors.append(e)
+
+            threads = [threading.Thread(target=write) for _ in range(4)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+            assert errors == []
+
+    def test_init_stores_max_bytes_and_backup_count(self):
+        log = Logger(max_bytes=512, backup_count=3)
+        assert log._max_bytes == 512
+        assert log._backup_count == 3
+
+    def test_init_defaults_are_none(self):
+        log = Logger()
+        assert log._max_bytes is None
+        assert log._backup_count is None

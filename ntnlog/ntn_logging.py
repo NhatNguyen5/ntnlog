@@ -17,6 +17,8 @@ from .ntn_config import (
     GLOBAL_LOGGING_ENABLED,
     GLOBAL_LOG_TRACING_ENABLED,
     GLOBAL_LOG_LEVEL,
+    GLOBAL_MAX_BYTES,
+    GLOBAL_BACKUP_COUNT,
 )
 
 
@@ -87,6 +89,8 @@ class Logger:
         project_dir: str | None = None,
         name: str | None = None,
         level: Level | None = None,
+        max_bytes: int | None = None,
+        backup_count: int | None = None,
     ):
         self._enable: bool = True
         self._enable_log_tracing: bool = False
@@ -96,6 +100,8 @@ class Logger:
         )
         self._name: str | None = name
         self._level: Level | None = level
+        self._max_bytes: int | None = max_bytes
+        self._backup_count: int | None = backup_count
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
@@ -223,7 +229,25 @@ class Logger:
             return
 
         file_name = os.path.join(file_path, f"{date}_logging.txt")
+
+        max_bytes    = self._max_bytes    if self._max_bytes    is not None else GLOBAL_MAX_BYTES
+        backup_count = self._backup_count if self._backup_count is not None else GLOBAL_BACKUP_COUNT
+
         with self._lock:
+            if os.path.exists(file_name) and os.path.getsize(file_name) >= max_bytes:
+                if backup_count == 0:
+                    os.remove(file_name)
+                else:
+                    oldest = f"{file_name}.{backup_count}"
+                    if os.path.exists(oldest):
+                        os.remove(oldest)
+                    for i in range(backup_count - 1, 0, -1):
+                        src = f"{file_name}.{i}"
+                        dst = f"{file_name}.{i + 1}"
+                        if os.path.exists(src):
+                            os.rename(src, dst)
+                    os.rename(file_name, f"{file_name}.1")
+
             with open(file_name, "a") as log_file:
                 # Write a header only on the very first entry (empty file)
                 if log_file.tell() == 0:
