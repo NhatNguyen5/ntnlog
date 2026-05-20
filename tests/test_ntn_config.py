@@ -88,4 +88,4 @@ class TestNewGlobalConfig:
         assert len(g) == 6
 
     def test_version_is_updated(self):
-        assert ntnlog.__version__ == "0.5.0"
+        assert ntnlog.__version__ == "0.5.1"

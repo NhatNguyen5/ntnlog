@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-05-20
+### Changed
+- Renamed example variable from `log` to `app_log` across README and wiki pages to avoid confusion with the `.log()` method name; all examples now use the callable form `app_log("msg")`
+- Reformatted `level` parameter docstring for readable IntelliSense tooltips
+- Added `twine check` step to publish workflow to catch README rendering issues before publishing to PyPI
+- Added pre-build version check to publish workflow — fails fast if `pyproject.toml` version does not match the release tag, preventing duplicate-version upload errors
+
 ## [0.5.0] - 2026-05-20
 ### Changed
 - **Breaking**: Replaced `print_to_console: bool` + `console_message: str = ""` with a single `console_message: str | None = None` parameter across `log()`, `__call__()`, `exception()`, `alog()`, and `aexception()` — `None` (default) suppresses console output, `""` prints the log message, any other string prints an override
