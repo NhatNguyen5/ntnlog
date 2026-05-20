@@ -1,5 +1,7 @@
 # ntnlog
 
+[![Coverage](https://NhatNguyen5.github.io/ntnlog/coverage.svg)](https://NhatNguyen5.github.io/ntnlog/)
+
 Lightweight Python logger with timestamped file output, caller stack tracing, and working-directory-scoped file utilities. Next-To-Nothing setup — just import and log.
 
 ## Features
