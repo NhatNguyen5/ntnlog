@@ -34,6 +34,29 @@ jobs:
       run: |
         python -m pytest tests/ -v --tb=short
 
+  version-check:
+    name: Version consistency
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Check all version references match
+      run: |
+        TOML_VER=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+        INIT_VER=$(grep '^__version__ = ' ntnlog/__init__.py | sed 's/__version__ = "\(.*\)"/\1/')
+        BUMP_VER=$(grep '^current_version = ' .bumpversion.cfg | sed 's/current_version = //')
+
+        echo "pyproject.toml:     $TOML_VER"
+        echo "ntnlog/__init__.py:  $INIT_VER"
+        echo ".bumpversion.cfg:    $BUMP_VER"
+
+        FAIL=0
+        [ "$TOML_VER" != "$INIT_VER" ] && echo "❌ pyproject.toml ($TOML_VER) != ntnlog/__init__.py ($INIT_VER)" && FAIL=1
+        [ "$TOML_VER" != "$BUMP_VER" ] && echo "❌ pyproject.toml ($TOML_VER) != .bumpversion.cfg ($BUMP_VER)"   && FAIL=1
+        [ "$FAIL" -eq 0 ] && echo "✓ All version references match: $TOML_VER"
+        exit $FAIL
+
   coverage:
     name: Coverage report
     needs: test
