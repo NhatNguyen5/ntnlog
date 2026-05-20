@@ -30,9 +30,13 @@ class TestGlobalConfig:
         assert g2 is True
 
     def test_flags_are_independent(self):
-        assert GLOBAL_LOGGING_ENABLED is not GLOBAL_LOG_TRACING_ENABLED or (
-            GLOBAL_LOGGING_ENABLED is True and GLOBAL_LOG_TRACING_ENABLED is True
-        )
+        import ntnlog.ntn_config as cfg
+        # Mutating one flag must not affect the other
+        try:
+            cfg.GLOBAL_LOG_TRACING_ENABLED = False
+            assert cfg.GLOBAL_LOGGING_ENABLED is True
+        finally:
+            cfg.GLOBAL_LOG_TRACING_ENABLED = True
 
 
 class TestNewGlobalConfig:

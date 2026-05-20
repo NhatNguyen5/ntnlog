@@ -399,9 +399,11 @@ class TestLogFormat:
             log = _make_logger(name="svc")
             log.log("hello")
             content = _read_log()
+            log_line = [l for l in content.splitlines() if "hello" in l][0]
             # Format: [timestamp][LEVEL][svc][caller] message
-            name_pos = content.index("[svc]")
-            caller_pos = content.index("]", name_pos + 1)
+            name_pos = log_line.index("[svc]")
+            # The opening [ of the caller segment must come after the full [svc] token
+            caller_pos = log_line.index("[", name_pos + len("[svc]"))
             assert name_pos < caller_pos
 
     def test_unnamed_logger_no_extra_bracket(self):
@@ -442,8 +444,13 @@ class TestLogFormat:
             log = _make_logger()
             log.log("line1\nline2")
             content = _read_log()
-            assert "line1" in content
-            assert "line2" in content
+            log_lines = [l for l in content.splitlines() if l.strip()]
+            first_line = next(l for l in log_lines if "line1" in l)
+            second_line = next(l for l in log_lines if "line2" in l)
+            msg_start = first_line.index("line1")
+            # Continuation lines must be indented to align with the message body
+            indent = len(second_line) - len(second_line.lstrip(" "))
+            assert indent == msg_start
 
     def test_timestamp_format_in_output(self):
         import re
@@ -459,37 +466,29 @@ class TestLogFormat:
 # ---------------------------------------------------------------------------
 
 class TestConsoleOutput:
-    def test_print_to_console_prints_message(self):
-        log = Logger()
-        with patch("builtins.open", MagicMock()):
-            with patch("ntnlog.ntn_logging.file_verify_path", return_value="/tmp"):
-                with patch("builtins.print") as mock_print:
-                    log.log("hello", print_to_console=True)
-                    mock_print.assert_called_once_with("hello")
+    def test_print_to_console_prints_message(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("hello", print_to_console=True)
+        assert capsys.readouterr().out.strip() == "hello"
 
-    def test_print_to_console_uses_custom_message(self):
-        log = Logger()
-        with patch("builtins.open", MagicMock()):
-            with patch("ntnlog.ntn_logging.file_verify_path", return_value="/tmp"):
-                with patch("builtins.print") as mock_print:
-                    log.log("hello", print_to_console=True, console_message="CUSTOM")
-                    mock_print.assert_called_once_with("CUSTOM")
+    def test_print_to_console_uses_custom_message(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("hello", print_to_console=True, console_message="CUSTOM")
+        assert capsys.readouterr().out.strip() == "CUSTOM"
 
-    def test_no_console_output_by_default(self):
-        log = Logger()
-        with patch("builtins.open", MagicMock()):
-            with patch("ntnlog.ntn_logging.file_verify_path", return_value="/tmp"):
-                with patch("builtins.print") as mock_print:
-                    log.log("hello")
-                    mock_print.assert_not_called()
+    def test_no_console_output_by_default(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("hello")
+        assert capsys.readouterr().out == ""
 
-    def test_empty_console_message_falls_back_to_message(self):
-        log = Logger()
-        with patch("builtins.open", MagicMock()):
-            with patch("ntnlog.ntn_logging.file_verify_path", return_value="/tmp"):
-                with patch("builtins.print") as mock_print:
-                    log.log("hello", print_to_console=True, console_message="")
-                    mock_print.assert_called_once_with("hello")
+    def test_empty_console_message_falls_back_to_message(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("hello", print_to_console=True, console_message="")
+        assert capsys.readouterr().out.strip() == "hello"
 
 
 # ---------------------------------------------------------------------------
@@ -643,25 +642,37 @@ class TestWriteToFile:
 # ---------------------------------------------------------------------------
 
 class TestThreadSafety:
+    @staticmethod
+    def _write_worker(log, errors, n=20):
+        try:
+            for _ in range(n):
+                log.log("concurrent")
+        except Exception as e:
+            errors.append(e)
+
     def test_concurrent_writes_do_not_raise(self):
         with _in_temp_dir():
             log = _make_logger()
             errors = []
-
-            def write():
-                try:
-                    for _ in range(20):
-                        log.log("concurrent")
-                except Exception as e:
-                    errors.append(e)
-
-            threads = [threading.Thread(target=write) for _ in range(5)]
+            threads = [threading.Thread(target=self._write_worker, args=(log, errors)) for _ in range(5)]
             for t in threads:
                 t.start()
             for t in threads:
                 t.join()
-
             assert errors == []
+
+    def test_concurrent_write_error_capture_works(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            errors = []
+            with patch.object(log, "_write_to_file", side_effect=OSError("forced")):
+                threads = [threading.Thread(target=self._write_worker, args=(log, errors, 5)) for _ in range(3)]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+            assert len(errors) > 0
+            assert all(isinstance(e, OSError) for e in errors)
 
 
 # ---------------------------------------------------------------------------
@@ -744,13 +755,13 @@ class TestLogLevelFiltering:
             assert "info msg" in content
 
     def test_global_level_used_when_instance_level_is_none(self):
-        log = Logger()
-        assert log._level is None
-        with patch("ntnlog.ntn_logging.GLOBAL_LOG_LEVEL", Level.CRITICAL):
-            with patch("builtins.open") as mock_open:
-                with patch("ntnlog.ntn_logging.file_verify_path", return_value="/tmp"):
-                    log.log("below", level=Level.ERROR)
-                    mock_open.assert_not_called()
+        with _in_temp_dir():
+            log = _make_logger()
+            assert log._level is None
+            with patch("ntnlog.ntn_logging.GLOBAL_LOG_LEVEL", Level.CRITICAL):
+                log.log("below", level=Level.ERROR)
+            log_files = [f for f in os.listdir("logs") if f.endswith(".txt")] if os.path.exists("logs") else []
+        assert log_files == []
 
     def test_instance_level_overrides_global(self):
         with _in_temp_dir():
@@ -891,25 +902,37 @@ class TestLogRotation:
             log_files = os.listdir("logs")
             assert not any(f.endswith(".txt.1") for f in log_files)
 
+    @staticmethod
+    def _rotation_worker(log, errors, n=20):
+        try:
+            for _ in range(n):
+                log.log("concurrent rotation test")
+        except Exception as e:
+            errors.append(e)
+
     def test_rotation_thread_safe_with_tiny_max_bytes(self):
         with _in_temp_dir():
             log = _make_logger(max_bytes=100, backup_count=2)
             errors = []
-
-            def write():
-                try:
-                    for _ in range(20):
-                        log.log("concurrent rotation test")
-                except Exception as e:
-                    errors.append(e)
-
-            threads = [threading.Thread(target=write) for _ in range(4)]
+            threads = [threading.Thread(target=self._rotation_worker, args=(log, errors)) for _ in range(4)]
             for t in threads:
                 t.start()
             for t in threads:
                 t.join()
-
             assert errors == []
+
+    def test_rotation_thread_safe_error_capture_works(self):
+        with _in_temp_dir():
+            log = _make_logger(max_bytes=100, backup_count=2)
+            errors = []
+            with patch.object(log, "_write_to_file", side_effect=OSError("forced")):
+                threads = [threading.Thread(target=self._rotation_worker, args=(log, errors, 5)) for _ in range(4)]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+            assert len(errors) > 0
+            assert all(isinstance(e, OSError) for e in errors)
 
     def test_init_stores_max_bytes_and_backup_count(self):
         log = Logger(max_bytes=512, backup_count=3)
@@ -1212,6 +1235,25 @@ class TestAsyncSupport:
             _asyncio.run(run_many())
             content = _read_log()
         assert content.count("msg") >= 20
+
+    def test_alog_concurrent_error_propagates(self):
+        with _in_temp_dir():
+            log = _make_logger()
+
+            async def run_many():
+                await _asyncio.gather(*[log.alog(f"msg {i}") for i in range(5)])
+
+            p = patch.object(log, "_write_to_file", side_effect=OSError("forced"))
+            p.start()
+            exc = None
+            try:
+                _asyncio.run(run_many())
+            except OSError as e:
+                exc = e
+            finally:
+                p.stop()
+            assert exc is not None
+            assert "forced" in str(exc)
 
     def test_alog_is_coroutine(self):
         log = Logger()
