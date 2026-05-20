@@ -13,10 +13,10 @@ pip install ntnlog
 ```python
 from ntnlog import Logger, Level
 
-log = Logger()
-log("Server started")
-log("Request received", console_message="")   # also prints to stdout
-log("Low disk space", Level.WARNING)           # WARNING level, no console
+app_log = Logger()
+app_log("Server started")
+app_log("Request received", console_message="")   # also prints to stdout
+app_log("Low disk space", Level.WARNING)           # WARNING level, no console
 ```
 
 Log output (`logs/2026-05-18_logging.txt`):
@@ -44,8 +44,8 @@ worker("Processing task")
 ## Level filtering
 
 ```python
-log = Logger(level=Level.WARNING)   # only WARNING and above written
-log = Logger(level="warning")       # string form also accepted
+app_log = Logger(level=Level.WARNING)   # only WARNING and above written
+app_log = Logger(level="warning")       # string form also accepted
 ```
 
 ## Exception capturing
@@ -54,28 +54,28 @@ log = Logger(level="warning")       # string form also accepted
 try:
     risky_operation()
 except Exception:
-    log.exception("Operation failed")  # attaches full traceback automatically
+    app_log.exception("Operation failed")  # attaches full traceback automatically
 ```
 
 ## Async logging
 
 ```python
-await log.alog("Async message")
-await log.aexception("Async error")  # captures traceback from calling coroutine
+await app_log.alog("Async message")
+await app_log.aexception("Async error")  # captures traceback from calling coroutine
 ```
 
 ## Log rotation
 
 ```python
-log = Logger(max_bytes=5_000_000, backup_count=3)
+app_log = Logger(max_bytes=5_000_000, backup_count=3)
 # Keeps up to 3 backups: log.txt.1, log.txt.2, log.txt.3
 ```
 
 ## Console colorization
 
 ```python
-log = Logger(colorize=True)                          # default colors per level
-log = Logger(colorize=True, colors={int(Level.ERROR): "\033[91m"})  # custom
+app_log = Logger(colorize=True)                          # default colors per level
+app_log = Logger(colorize=True, colors={int(Level.ERROR): "\033[91m"})  # custom
 ```
 
 ## Path utilities

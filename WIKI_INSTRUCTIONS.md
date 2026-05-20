@@ -66,7 +66,7 @@ When a log file exceeds `max_bytes`, it is rotated before the next write:
 - A fresh file is opened with a new header
 
 ```python
-log = Logger(max_bytes=5_000_000, backup_count=3)
+app_log = Logger(max_bytes=5_000_000, backup_count=3)
 # Keeps: log.txt, log.txt.1, log.txt.2, log.txt.3
 ```
 
@@ -81,11 +81,11 @@ Set `backup_count=0` to simply delete the current file on rotation (no backups k
 Write a log entry.
 
 ```python
-log.log("Server started")
-log.log("Request received", console_message="")           # also prints to stdout
-log.log("Error occurred", console_message="Check logs")   # prints override to stdout
-log.log("Debug detail", Level.DEBUG)
-log.log("Warning!", Level.WARNING, "Hey!")                # level + console override
+app_log("Server started")
+app_log("Request received", console_message="")           # also prints to stdout
+app_log("Error occurred", console_message="Check logs")   # prints override to stdout
+app_log("Debug detail", Level.DEBUG)
+app_log("Warning!", Level.WARNING, "Hey!")                # level + console override
 ```
 
 | Parameter | Type | Default | Description |
@@ -99,8 +99,8 @@ log.log("Warning!", Level.WARNING, "Hey!")                # level + console over
 The logger is callable — identical to `log()`:
 
 ```python
-log("Server started")
-log("Warning!", level=Level.WARNING)
+app_log("Server started")
+app_log("Warning!", level=Level.WARNING)
 ```
 
 #### `exception(message, level=Level.ERROR, console_message=None)`
@@ -111,10 +111,10 @@ Write a log entry and append the currently active traceback. Call from inside an
 try:
     risky_operation()
 except ValueError:
-    log.exception("Validation failed")
+    app_log.exception("Validation failed")
     # Writes message + full traceback to file
 
-log.exception("No active exception")
+app_log.exception("No active exception")
 # Writes message only — no traceback appended
 ```
 
@@ -129,8 +129,8 @@ log.exception("No active exception")
 Async equivalent of `log()`. Offloads the file write to a thread so the event loop is not blocked.
 
 ```python
-await log.alog("Async operation complete")
-await log.alog("High severity", Level.CRITICAL)
+await app_log.alog("Async operation complete")
+await app_log.alog("High severity", Level.CRITICAL)
 ```
 
 #### `aexception(message, level=Level.ERROR, console_message=None)` *(async)*
@@ -141,7 +141,7 @@ Async equivalent of `exception()`. Captures the traceback from the calling corou
 try:
     await risky_coroutine()
 except Exception:
-    await log.aexception("Async task failed")
+    await app_log.aexception("Async task failed")
 ```
 
 #### `enable_logging(enable: bool)`
@@ -149,8 +149,8 @@ except Exception:
 Enable or disable this logger instance without affecting others.
 
 ```python
-log.enable_logging(False)  # silence this logger
-log.enable_logging(True)   # re-enable
+app_log.enable_logging(False)  # silence this logger
+app_log.enable_logging(True)   # re-enable
 ```
 
 #### `enable_log_tracing(enable: bool)`
@@ -158,7 +158,7 @@ log.enable_logging(True)   # re-enable
 Enable or disable full call-stack tracing for this instance.
 
 ```python
-log.enable_log_tracing(True)
+app_log.enable_log_tracing(True)
 # Output: [2026-05-18 10:30:00][INFO][worker.py:8>main.py:42] message
 ```
 
@@ -299,10 +299,10 @@ Both functions reject paths that escape the working directory via `..` traversal
 ```python
 from ntnlog import Logger, Level
 
-log = Logger()
-log("Application started")
-log("Request received", console_message="")   # also prints to stdout
-log("Low memory", Level.WARNING)
+app_log = Logger()
+app_log("Application started")
+app_log("Request received", console_message="")   # also prints to stdout
+app_log("Low memory", Level.WARNING)
 ```
 
 ### Multiple named loggers
@@ -328,12 +328,12 @@ Log output:
 ```python
 from ntnlog import Logger, Level
 
-log = Logger(level=Level.WARNING)
+app_log = Logger(level=Level.WARNING)
 
-log("Debug detail", level=Level.DEBUG)    # dropped — below threshold
-log("All good", level=Level.INFO)         # dropped — below threshold
-log("Disk almost full", level=Level.WARNING)   # written
-log("Service crashed", level=Level.CRITICAL)   # written
+app_log("Debug detail", level=Level.DEBUG)    # dropped — below threshold
+app_log("All good", level=Level.INFO)         # dropped — below threshold
+app_log("Disk almost full", level=Level.WARNING)   # written
+app_log("Service crashed", level=Level.CRITICAL)   # written
 ```
 
 ### Exception capturing
@@ -341,12 +341,12 @@ log("Service crashed", level=Level.CRITICAL)   # written
 ```python
 from ntnlog import Logger
 
-log = Logger()
+app_log = Logger()
 
 try:
     result = int("not a number")
 except ValueError:
-    log.exception("Conversion failed")
+    app_log.exception("Conversion failed")
     # Writes message + full traceback including file, line, and exception type
 ```
 
@@ -356,14 +356,14 @@ except ValueError:
 import asyncio
 from ntnlog import Logger, Level
 
-log = Logger()
+app_log = Logger()
 
 async def handle_request():
-    await log.alog("Handling request")
+    await app_log.alog("Handling request")
     try:
         await fetch_data()
     except Exception:
-        await log.aexception("Fetch failed", level=Level.CRITICAL)
+        await app_log.aexception("Fetch failed", level=Level.CRITICAL)
 
 asyncio.run(handle_request())
 ```
@@ -374,11 +374,11 @@ asyncio.run(handle_request())
 from ntnlog import Logger
 
 # Rotate at 5 MB, keep 3 backups
-log = Logger(max_bytes=5_000_000, backup_count=3)
+app_log = Logger(max_bytes=5_000_000, backup_count=3)
 # Files: log.txt, log.txt.1, log.txt.2, log.txt.3
 
 # Rotate and delete (no backups)
-log = Logger(max_bytes=1_000_000, backup_count=0)
+app_log = Logger(max_bytes=1_000_000, backup_count=0)
 ```
 
 ### Console colorization
@@ -387,13 +387,13 @@ log = Logger(max_bytes=1_000_000, backup_count=0)
 from ntnlog import Logger, Level
 
 # Default ANSI colors per level
-log = Logger(colorize=True)
-log("All good", level=Level.INFO)       # green
-log("Watch out", level=Level.WARNING)   # yellow
-log("Failed", level=Level.ERROR)        # red
+app_log = Logger(colorize=True)
+app_log("All good", level=Level.INFO)       # green
+app_log("Watch out", level=Level.WARNING)   # yellow
+app_log("Failed", level=Level.ERROR)        # red
 
 # Custom color for one level
-log = Logger(colorize=True, colors={int(Level.INFO): "\033[94m"})  # bright blue INFO
+app_log = Logger(colorize=True, colors={int(Level.INFO): "\033[94m"})  # bright blue INFO
 ```
 
 ### Call-stack tracing
@@ -401,11 +401,11 @@ log = Logger(colorize=True, colors={int(Level.INFO): "\033[94m"})  # bright blue
 ```python
 from ntnlog import Logger
 
-log = Logger(name="api")
-log.enable_log_tracing(True)
+app_log = Logger(name="api")
+app_log.enable_log_tracing(True)
 
 def handle_request():
-    log("Handling request")
+    app_log("Handling request")
 
 def main():
     handle_request()
@@ -419,7 +419,7 @@ Log output:
 ### Project-aware frame filtering
 
 ```python
-log = Logger(project_dir="/path/to/my_project")
+app_log = Logger(project_dir="/path/to/my_project")
 ```
 
 Only frames inside `my_project` appear in caller info — framework and library frames are excluded.
