@@ -27,25 +27,25 @@ pip install ntnlog
 ```python
 from ntnlog import Logger, Level
 
-log = Logger()
+app_log = Logger()
 
-log("Application started")
-log("Important message", console_message="")      # also prints to stdout
-log("Something suspicious", Level.WARNING)         # WARNING level, no console
+app_log("Application started")
+app_log("Important message", console_message="")      # also prints to stdout
+app_log("Something suspicious", Level.WARNING)         # WARNING level, no console
 
 # Exception capturing — attaches the active traceback automatically
 try:
     do_something()
 except Exception:
-    log.exception("Something went wrong")
+    app_log.exception("Something went wrong")
 
 # Async logging
-await log.alog("Async message")
-await log.aexception("Async error")
+await app_log.alog("Async message")
+await app_log.aexception("Async error")
 
 # Enable detailed call-stack tracing
-log.enable_log_tracing(True)
-log("Traced message")
+app_log.enable_log_tracing(True)
+app_log("Traced message")
 
 # Named loggers — useful when multiple instances log to the same file
 app_logger = Logger(name="app")
@@ -54,20 +54,20 @@ worker_logger = Logger(name="worker")
 #         [2026-05-13 15:46:34][INFO][worker][worker.py:8] message
 
 # Level filtering — string or enum, both work
-log = Logger(level=Level.WARNING)
-log = Logger(level="warning")
+app_log = Logger(level=Level.WARNING)
+app_log = Logger(level="warning")
 
 # Log rotation
-log = Logger(max_bytes=5_000_000, backup_count=3)
+app_log = Logger(max_bytes=5_000_000, backup_count=3)
 
 # Console colorization
-log = Logger(colorize=True)
+app_log = Logger(colorize=True)
 
 # Custom log directory
-log = Logger(log_dir="my_logs")
+app_log = Logger(log_dir="my_logs")
 
 # Project-aware frame filtering
-log = Logger(project_dir="/path/to/project")
+app_log = Logger(project_dir="/path/to/project")
 ```
 
 ## Configuration
@@ -94,8 +94,8 @@ from ntnlog.ntn_config import (
 
 Per-instance controls:
 ```python
-log.enable_logging(False)      # disable this logger
-log.enable_log_tracing(True)   # enable tracing for this logger
+app_log.enable_logging(False)      # disable this logger
+app_log.enable_log_tracing(True)   # enable tracing for this logger
 ```
 
 ## Modules
