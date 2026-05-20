@@ -28,7 +28,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov", "coverage-badge", "bump2version"]
+dev = ["pytest", "pytest-cov", "genbadge[coverage]", "bump2version"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

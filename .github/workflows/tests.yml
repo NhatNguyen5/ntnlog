@@ -64,7 +64,9 @@ jobs:
         python -m pytest tests/ --cov-report=html --cov-report=xml
 
     - name: Generate coverage badge
-      run: coverage-badge -o htmlcov/coverage.svg -f
+      run: |
+        pip install genbadge[coverage]
+        genbadge coverage -i coverage.xml -o htmlcov/coverage.svg
 
     - name: Upload Pages artifact
       uses: actions/upload-pages-artifact@v3
