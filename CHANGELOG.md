@@ -9,16 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0] - 2026-05-20
 ### Changed
-- **Breaking**: Replaced the `print_to_console: bool` + `console_message: str = ""` pair with a
-  single `console_message: str | None = None` parameter across `log()`, `__call__()`,
-  `exception()`, `alog()`, and `aexception()`. Pass `console_message=""` to print the log message
-  to stdout, `console_message="custom text"` to print an override, or omit the parameter (or pass
-  `None`) to suppress console output entirely.
-- **Breaking**: `level` is now the second positional parameter (after `message`) instead of the
-  fourth, making `log("msg", Level.WARNING)` the natural two-argument call pattern.
-- Test suite updated: all tests referencing the old `print_to_console` parameter have been
-  rewritten; new tests added covering the `str | None` semantics of `console_message` for all five
-  public logging methods.
+- **Breaking**: Replaced `print_to_console: bool` + `console_message: str = ""` with a single `console_message: str | None = None` parameter across `log()`, `__call__()`, `exception()`, `alog()`, and `aexception()` — `None` (default) suppresses console output, `""` prints the log message, any other string prints an override
+- **Breaking**: `level` is now the second positional parameter (after `message`) instead of the fourth — `log("msg", Level.WARNING)` is now the natural two-argument call pattern
+- Test suite rewritten for the new signature; new tests added covering the `str | None` semantics of `console_message` across all five public logging methods; string level coercion in `log()` now covered (100% coverage)
+
+**Migration:**
+```python
+# Before
+log("msg", print_to_console=True)
+log("msg", print_to_console=True, console_message="Hey!")
+log("msg", level=Level.WARNING)
+
+# After
+log("msg", console_message="")
+log("msg", console_message="Hey!")
+log("msg", Level.WARNING)
+```
 
 ## [0.4.1] - 2026-05-20
 ### Changed
