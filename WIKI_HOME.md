@@ -15,8 +15,8 @@ from ntnlog import Logger, Level
 
 log = Logger()
 log("Server started")
-log("Request received", print_to_console=True)
-log("Low disk space", level=Level.WARNING)
+log("Request received", console_message="")   # also prints to stdout
+log("Low disk space", Level.WARNING)           # WARNING level, no console
 ```
 
 Log output (`logs/2026-05-18_logging.txt`):

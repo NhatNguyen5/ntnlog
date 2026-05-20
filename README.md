@@ -30,8 +30,8 @@ from ntnlog import Logger, Level
 log = Logger()
 
 log("Application started")
-log("Important message", print_to_console=True)
-log("Something suspicious", level=Level.WARNING)
+log("Important message", console_message="")      # also prints to stdout
+log("Something suspicious", Level.WARNING)         # WARNING level, no console
 
 # Exception capturing — attaches the active traceback automatically
 try:

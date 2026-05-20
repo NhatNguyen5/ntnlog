@@ -22,7 +22,7 @@ from .ntn_file_utils import (
 )
 from . import ntn_utils as utils
 
-__version__ = "0.4.1"
+__version__ = "0.5.0"
 __author__ = "Nathan T Nguyen"
 
 __all__ = [

@@ -1,3 +1,4 @@
+import asyncio as _asyncio
 import os
 import threading
 import tempfile
@@ -167,26 +168,27 @@ class TestParseLevelInit:
 # ---------------------------------------------------------------------------
 
 class TestLevelParamOrder:
-    """Verify that level sits at the end and print_to_console is still 2nd."""
+    """Verify that level is the second positional parameter and console_message is third."""
 
     # log()
 
-    def test_log_positional_print_to_console(self, capsys):
+    def test_log_positional_level(self):
         with _in_temp_dir():
             log = _make_logger()
-            log.log("msg", True)   # print_to_console=True, level defaults to INFO
-        assert "msg" in capsys.readouterr().out
+            log.log("msg", Level.WARNING)   # level as 2nd positional
+            content = _read_log()
+        assert "[WARNING]" in content
 
     def test_log_positional_console_message(self, capsys):
         with _in_temp_dir():
             log = _make_logger()
-            log.log("msg", True, "Hey")   # print_to_console=True, console_message="Hey"
+            log.log("msg", Level.INFO, "Hey")   # console_message as 3rd positional
         assert "Hey" in capsys.readouterr().out
 
     def test_log_positional_all_params(self, capsys):
         with _in_temp_dir():
             log = _make_logger()
-            log.log("msg", True, "Hey", Level.WARNING)   # all four positional
+            log.log("msg", Level.WARNING, "Hey")   # all three positional
             content = _read_log()
         assert "[WARNING]" in content
         assert "Hey" in capsys.readouterr().out
@@ -207,22 +209,23 @@ class TestLevelParamOrder:
 
     # __call__
 
-    def test_call_positional_print_to_console(self, capsys):
+    def test_call_positional_level(self):
         with _in_temp_dir():
             log = _make_logger()
-            log("msg", True)
-        assert "msg" in capsys.readouterr().out
+            log("msg", Level.WARNING)
+            content = _read_log()
+        assert "[WARNING]" in content
 
     def test_call_positional_console_message(self, capsys):
         with _in_temp_dir():
             log = _make_logger()
-            log("msg", True, "Hey")
+            log("msg", Level.INFO, "Hey")
         assert "Hey" in capsys.readouterr().out
 
     def test_call_positional_all_params(self, capsys):
         with _in_temp_dir():
             log = _make_logger()
-            log("msg", True, "Hey", Level.ERROR)
+            log("msg", Level.ERROR, "Hey")
             content = _read_log()
         assert "[ERROR]" in content
         assert "Hey" in capsys.readouterr().out
@@ -236,24 +239,35 @@ class TestLevelParamOrder:
 
     # exception()
 
-    def test_exception_positional_print_to_console(self, capsys):
+    def test_exception_positional_level(self):
         with _in_temp_dir():
             log = _make_logger()
             try:
                 raise ValueError("e")
             except ValueError:
-                log.exception("msg", True)
-        assert "msg" in capsys.readouterr().out
-
-    def test_exception_positional_all_params(self):
-        with _in_temp_dir():
-            log = _make_logger()
-            try:
-                raise ValueError("e")
-            except ValueError:
-                log.exception("msg", False, "", Level.CRITICAL)
+                log.exception("msg", Level.CRITICAL)
             content = _read_log()
         assert "[CRITICAL]" in content
+
+    def test_exception_positional_console_message(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("e")
+            except ValueError:
+                log.exception("msg", Level.ERROR, "")
+        assert "msg" in capsys.readouterr().out
+
+    def test_exception_positional_all_params(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise ValueError("e")
+            except ValueError:
+                log.exception("msg", Level.CRITICAL, "Hey")
+            content = _read_log()
+        assert "[CRITICAL]" in content
+        assert "Hey" in capsys.readouterr().out
 
     def test_exception_omit_level_defaults_to_error(self):
         with _in_temp_dir():
@@ -267,20 +281,29 @@ class TestLevelParamOrder:
 
     # alog()
 
-    def test_alog_positional_print_to_console(self, capsys):
+    def test_alog_positional_level(self):
         import asyncio
         with _in_temp_dir():
             log = _make_logger()
-            asyncio.run(log.alog("msg", True))
-        assert "msg" in capsys.readouterr().out
-
-    def test_alog_positional_all_params(self):
-        import asyncio
-        with _in_temp_dir():
-            log = _make_logger()
-            asyncio.run(log.alog("msg", False, "", Level.WARNING))
+            asyncio.run(log.alog("msg", Level.WARNING))
             content = _read_log()
         assert "[WARNING]" in content
+
+    def test_alog_positional_console_message(self, capsys):
+        import asyncio
+        with _in_temp_dir():
+            log = _make_logger()
+            asyncio.run(log.alog("msg", Level.INFO, "Hey"))
+        assert "Hey" in capsys.readouterr().out
+
+    def test_alog_positional_all_params(self, capsys):
+        import asyncio
+        with _in_temp_dir():
+            log = _make_logger()
+            asyncio.run(log.alog("msg", Level.WARNING, "Hey"))
+            content = _read_log()
+        assert "[WARNING]" in content
+        assert "Hey" in capsys.readouterr().out
 
     def test_alog_omit_level_defaults_to_info(self):
         import asyncio
@@ -292,26 +315,38 @@ class TestLevelParamOrder:
 
     # aexception()
 
-    def test_aexception_positional_print_to_console(self, capsys):
+    def test_aexception_positional_level(self):
         import asyncio
         with _in_temp_dir():
             log = _make_logger()
             try:
                 raise RuntimeError("e")
             except RuntimeError:
-                asyncio.run(log.aexception("msg", True))
-        assert "msg" in capsys.readouterr().out
-
-    def test_aexception_positional_all_params(self):
-        import asyncio
-        with _in_temp_dir():
-            log = _make_logger()
-            try:
-                raise RuntimeError("e")
-            except RuntimeError:
-                asyncio.run(log.aexception("msg", False, "", Level.CRITICAL))
+                asyncio.run(log.aexception("msg", Level.CRITICAL))
             content = _read_log()
         assert "[CRITICAL]" in content
+
+    def test_aexception_positional_console_message(self, capsys):
+        import asyncio
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise RuntimeError("e")
+            except RuntimeError:
+                asyncio.run(log.aexception("msg", Level.ERROR, ""))
+        assert "msg" in capsys.readouterr().out
+
+    def test_aexception_positional_all_params(self, capsys):
+        import asyncio
+        with _in_temp_dir():
+            log = _make_logger()
+            try:
+                raise RuntimeError("e")
+            except RuntimeError:
+                asyncio.run(log.aexception("msg", Level.CRITICAL, "Hey"))
+            content = _read_log()
+        assert "[CRITICAL]" in content
+        assert "Hey" in capsys.readouterr().out
 
     def test_aexception_omit_level_defaults_to_error(self):
         import asyncio
@@ -466,29 +501,65 @@ class TestLogFormat:
 # ---------------------------------------------------------------------------
 
 class TestConsoleOutput:
-    def test_print_to_console_prints_message(self, capsys):
-        with _in_temp_dir():
-            log = _make_logger()
-            log.log("hello", print_to_console=True)
-        assert capsys.readouterr().out.strip() == "hello"
-
-    def test_print_to_console_uses_custom_message(self, capsys):
-        with _in_temp_dir():
-            log = _make_logger()
-            log.log("hello", print_to_console=True, console_message="CUSTOM")
-        assert capsys.readouterr().out.strip() == "CUSTOM"
-
-    def test_no_console_output_by_default(self, capsys):
+    def test_console_message_none_no_output(self, capsys):
         with _in_temp_dir():
             log = _make_logger()
             log.log("hello")
         assert capsys.readouterr().out == ""
 
-    def test_empty_console_message_falls_back_to_message(self, capsys):
+    def test_console_message_none_explicit_no_output(self, capsys):
         with _in_temp_dir():
             log = _make_logger()
-            log.log("hello", print_to_console=True, console_message="")
+            log.log("hello", console_message=None)
+        assert capsys.readouterr().out == ""
+
+    def test_console_message_empty_string_prints_message(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("hello", console_message="")
         assert capsys.readouterr().out.strip() == "hello"
+
+    def test_console_message_string_overrides_output(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("hello", console_message="CUSTOM")
+        assert capsys.readouterr().out.strip() == "CUSTOM"
+
+    def test_exception_console_message_none_no_output(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.exception("no console")
+        assert capsys.readouterr().out == ""
+
+    def test_exception_console_message_empty_string_prints_message(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.exception("hello", console_message="")
+        assert "hello" in capsys.readouterr().out
+
+    def test_alog_console_message_none_no_output(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            _asyncio.run(log.alog("hello"))
+        assert capsys.readouterr().out == ""
+
+    def test_alog_console_message_empty_string_prints_message(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            _asyncio.run(log.alog("hello", console_message=""))
+        assert "hello" in capsys.readouterr().out
+
+    def test_aexception_console_message_none_no_output(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            _asyncio.run(log.aexception("no console"))
+        assert capsys.readouterr().out == ""
+
+    def test_aexception_console_message_empty_string_prints_message(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger()
+            _asyncio.run(log.aexception("hello", console_message=""))
+        assert "hello" in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------------------
@@ -499,20 +570,20 @@ class TestCallable:
     def test_call_delegates_to_log(self):
         log = Logger()
         with patch.object(log, "log") as mock_log:
-            log("msg", print_to_console=True, console_message="c")
-            mock_log.assert_called_once_with("msg", level=Level.INFO, print_to_console=True, console_message="c")
+            log("msg", console_message="c")
+            mock_log.assert_called_once_with("msg", level=Level.INFO, console_message="c")
 
     def test_call_default_args(self):
         log = Logger()
         with patch.object(log, "log") as mock_log:
             log("msg")
-            mock_log.assert_called_once_with("msg", level=Level.INFO, print_to_console=False, console_message="")
+            mock_log.assert_called_once_with("msg", level=Level.INFO, console_message=None)
 
     def test_call_with_level(self):
         log = Logger()
         with patch.object(log, "log") as mock_log:
             log("msg", level=Level.ERROR)
-            mock_log.assert_called_once_with("msg", level=Level.ERROR, print_to_console=False, console_message="")
+            mock_log.assert_called_once_with("msg", level=Level.ERROR, console_message=None)
 
 
 # ---------------------------------------------------------------------------
@@ -791,6 +862,13 @@ class TestLogLevelFormat:
             content = _read_log()
             assert "[WARNING]" in content
 
+    def test_string_level_coerced_in_log_call(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("msg", "WARNING")
+            content = _read_log()
+        assert "[WARNING]" in content
+
     def test_info_level_name_in_output(self):
         with _in_temp_dir():
             log = _make_logger()
@@ -979,14 +1057,14 @@ class TestConsoleColorization:
     def test_colorize_false_no_ansi_in_console_output(self, capsys):
         with _in_temp_dir():
             log = _make_logger(colorize=False)
-            log.log("plain", print_to_console=True)
+            log.log("plain", console_message="")
         captured = capsys.readouterr()
         assert "\033[" not in captured.out
 
     def test_colorize_true_wraps_output_with_ansi(self, capsys):
         with _in_temp_dir():
             log = _make_logger(colorize=True)
-            log.log("colorful", print_to_console=True)
+            log.log("colorful", console_message="")
         captured = capsys.readouterr()
         assert "\033[" in captured.out
         assert "\033[0m" in captured.out
@@ -995,14 +1073,14 @@ class TestConsoleColorization:
         from ntnlog.ntn_config import GLOBAL_LOG_COLORS
         with _in_temp_dir():
             log = _make_logger(colorize=True)
-            log.log("err msg", level=Level.ERROR, print_to_console=True)
+            log.log("err msg", Level.ERROR, "")
         captured = capsys.readouterr()
         assert GLOBAL_LOG_COLORS[int(Level.ERROR)] in captured.out
 
     def test_colorize_console_message_also_colorized(self, capsys):
         with _in_temp_dir():
             log = _make_logger(colorize=True)
-            log.log("msg", print_to_console=True, console_message="Hey!")
+            log.log("msg", console_message="Hey!")
         captured = capsys.readouterr()
         assert "Hey!" in captured.out
         assert "\033[" in captured.out
@@ -1010,14 +1088,14 @@ class TestConsoleColorization:
     def test_colorize_does_not_write_ansi_to_file(self):
         with _in_temp_dir():
             log = _make_logger(colorize=True)
-            log.log("file entry", print_to_console=False)
+            log.log("file entry")
             content = _read_log()
         assert "\033[" not in content
 
     def test_colorize_reset_code_appended(self, capsys):
         with _in_temp_dir():
             log = _make_logger(colorize=True)
-            log.log("reset test", print_to_console=True)
+            log.log("reset test", console_message="")
         captured = capsys.readouterr()
         assert captured.out.rstrip("\n").endswith("\033[0m")
 
@@ -1025,7 +1103,7 @@ class TestConsoleColorization:
         custom_color = "\033[95m"
         with _in_temp_dir():
             log = _make_logger(colorize=True, colors={int(Level.INFO): custom_color})
-            log.log("custom color", level=Level.INFO, print_to_console=True)
+            log.log("custom color", Level.INFO, "")
         captured = capsys.readouterr()
         assert custom_color in captured.out
 
@@ -1100,7 +1178,7 @@ class TestExceptionCapturing:
             try:
                 raise ValueError("err")
             except ValueError:
-                log.exception("console msg", print_to_console=True)
+                log.exception("console msg", console_message="")
         captured = capsys.readouterr()
         assert "console msg" in captured.out
 
@@ -1110,7 +1188,7 @@ class TestExceptionCapturing:
             try:
                 raise ValueError("err")
             except ValueError:
-                log.exception("file msg", print_to_console=True, console_message="Custom!")
+                log.exception("file msg", console_message="Custom!")
         captured = capsys.readouterr()
         assert "Custom!" in captured.out
 
@@ -1139,8 +1217,6 @@ class TestExceptionCapturing:
 # ---------------------------------------------------------------------------
 # Async support
 # ---------------------------------------------------------------------------
-
-import asyncio as _asyncio
 
 
 class TestAsyncSupport:
@@ -1175,14 +1251,14 @@ class TestAsyncSupport:
     def test_alog_print_to_console(self, capsys):
         with _in_temp_dir():
             log = _make_logger()
-            _asyncio.run(log.alog("async console", print_to_console=True))
+            _asyncio.run(log.alog("async console", console_message=""))
         captured = capsys.readouterr()
         assert "async console" in captured.out
 
     def test_alog_custom_console_message(self, capsys):
         with _in_temp_dir():
             log = _make_logger()
-            _asyncio.run(log.alog("file msg", print_to_console=True, console_message="Hey async!"))
+            _asyncio.run(log.alog("file msg", console_message="Hey async!"))
         captured = capsys.readouterr()
         assert "Hey async!" in captured.out
 

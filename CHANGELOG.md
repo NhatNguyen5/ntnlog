@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-20
+### Changed
+- **Breaking**: Replaced the `print_to_console: bool` + `console_message: str = ""` pair with a
+  single `console_message: str | None = None` parameter across `log()`, `__call__()`,
+  `exception()`, `alog()`, and `aexception()`. Pass `console_message=""` to print the log message
+  to stdout, `console_message="custom text"` to print an override, or omit the parameter (or pass
+  `None`) to suppress console output entirely.
+- **Breaking**: `level` is now the second positional parameter (after `message`) instead of the
+  fourth, making `log("msg", Level.WARNING)` the natural two-argument call pattern.
+- Test suite updated: all tests referencing the old `print_to_console` parameter have been
+  rewritten; new tests added covering the `str | None` semantics of `console_message` for all five
+  public logging methods.
+
 ## [0.4.1] - 2026-05-20
 ### Changed
 - Updated PyPI short description to reflect v0.4.0 features (log levels, rotation, colorization, async support)

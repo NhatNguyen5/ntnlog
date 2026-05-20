@@ -76,23 +76,23 @@ Set `backup_count=0` to simply delete the current file on rotation (no backups k
 
 ### Methods
 
-#### `log(message, print_to_console=False, console_message="", level=Level.INFO)`
+#### `log(message, level=Level.INFO, console_message=None)`
 
 Write a log entry.
 
 ```python
 log.log("Server started")
-log.log("Request received", print_to_console=True)
-log.log("Error occurred", print_to_console=True, console_message="Check logs")
-log.log("Debug detail", level=Level.DEBUG)
+log.log("Request received", console_message="")           # also prints to stdout
+log.log("Error occurred", console_message="Check logs")   # prints override to stdout
+log.log("Debug detail", Level.DEBUG)
+log.log("Warning!", Level.WARNING, "Hey!")                # level + console override
 ```
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `message` | `str` | — | Message written to the log file. |
-| `print_to_console` | `bool` | `False` | Also print to stdout. |
-| `console_message` | `str` | `""` | Custom stdout message. Falls back to `message` when empty. |
-| `level` | `Level` | `Level.INFO` | Level for this entry. Dropped silently if below the instance threshold. |
+| `level` | `Level \| str` | `Level.INFO` | Level for this entry. Dropped silently if below the instance threshold. |
+| `console_message` | `str \| None` | `None` | `None` — no stdout output. `""` — prints `message` to stdout. Any other string — prints that string to stdout instead of `message`. |
 
 #### `__call__` (shorthand)
 
@@ -103,7 +103,7 @@ log("Server started")
 log("Warning!", level=Level.WARNING)
 ```
 
-#### `exception(message, print_to_console=False, console_message="", level=Level.ERROR)`
+#### `exception(message, level=Level.ERROR, console_message=None)`
 
 Write a log entry and append the currently active traceback. Call from inside an `except` block; outside a handler, the message is written without a traceback.
 
@@ -121,20 +121,19 @@ log.exception("No active exception")
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `message` | `str` | — | Message written to the log file. |
-| `print_to_console` | `bool` | `False` | Also print to stdout. |
-| `console_message` | `str` | `""` | Custom stdout message. Falls back to `message` when empty. |
-| `level` | `Level` | `Level.ERROR` | Level for this entry. |
+| `level` | `Level \| str` | `Level.ERROR` | Level for this entry. |
+| `console_message` | `str \| None` | `None` | `None` — no stdout output. `""` — prints `message` to stdout. Any other string — prints that string to stdout instead of `message`. |
 
-#### `alog(message, print_to_console=False, console_message="", level=Level.INFO)` *(async)*
+#### `alog(message, level=Level.INFO, console_message=None)` *(async)*
 
 Async equivalent of `log()`. Offloads the file write to a thread so the event loop is not blocked.
 
 ```python
 await log.alog("Async operation complete")
-await log.alog("High severity", level=Level.CRITICAL)
+await log.alog("High severity", Level.CRITICAL)
 ```
 
-#### `aexception(message, print_to_console=False, console_message="", level=Level.ERROR)` *(async)*
+#### `aexception(message, level=Level.ERROR, console_message=None)` *(async)*
 
 Async equivalent of `exception()`. Captures the traceback from the calling coroutine before offloading to a thread (because `sys.exc_info()` is thread-local and would be empty inside the worker thread).
 
@@ -302,8 +301,8 @@ from ntnlog import Logger, Level
 
 log = Logger()
 log("Application started")
-log("Request received", print_to_console=True)
-log("Low memory", level=Level.WARNING)
+log("Request received", console_message="")   # also prints to stdout
+log("Low memory", Level.WARNING)
 ```
 
 ### Multiple named loggers

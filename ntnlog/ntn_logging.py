@@ -15,7 +15,8 @@ import threading
 from datetime import datetime
 from .ntn_file_utils import FileUtilsError, file_verify_path
 from inspect import getframeinfo, stack
-from .ntn_levels import Level
+from .ntn_levels import Level, LevelLike
+
 from .ntn_config import (
     GLOBAL_LOGGING_ENABLED,
     GLOBAL_LOG_TRACING_ENABLED,
@@ -66,7 +67,7 @@ class Logger:
     -----
         log = Logger()
         log("Something happened")
-        log.log("Something happened", print_to_console=True, console_message="Hey!")
+        log.log("Something happened", console_message="Hey!")
 
     Parameters
     ----------
@@ -147,19 +148,60 @@ class Logger:
     def __call__(
         self,
         message: str,
-        print_to_console: bool = False,
-        console_message: str = "",
-        level: Level = Level.INFO,
+        level: LevelLike = Level.INFO,
+        console_message: str | None = None,
     ) -> None:
-        self.log(message, print_to_console=print_to_console, console_message=console_message, level=level)
+        """
+        Write a log entry. Alias for :meth:`log`.
+
+        Parameters
+        ----------
+        message : str
+            Text to write to the log file.
+        level : LevelLike
+            ``"TRACE"``    ( 5)
+            ``"DEBUG"``    (10)
+            ``"INFO"``     (20)
+            ``"WARNING"``  (30)
+            ``"ERROR"``    (40)
+            ``"CRITICAL"`` (50).
+            Also accepts a ``Level`` enum member.
+        console_message : str | None
+            When ``None`` (default), nothing is printed to stdout.
+            When ``""`` (empty string), prints *message* to stdout.
+            When any other string, prints that string to stdout instead of *message*.
+        """
+        self.log(message, level=level, console_message=console_message)
 
     def log(
         self,
         message: str,
-        print_to_console: bool = False,
-        console_message: str = "",
-        level: Level = Level.INFO,
+        level: LevelLike = Level.INFO,
+        console_message: str | None = None,
     ) -> None:
+        """
+        Write a log entry.
+
+        Parameters
+        ----------
+        message : str
+            Text to write to the log file.
+        level : LevelLike
+            ``"TRACE"``    ( 5)
+            ``"DEBUG"``    (10)
+            ``"INFO"``     (20)
+            ``"WARNING"``  (30)
+            ``"ERROR"``    (40)
+            ``"CRITICAL"`` (50).
+            Also accepts a ``Level`` enum member.
+        console_message : str | None
+            When ``None`` (default), nothing is printed to stdout.
+            When ``""`` (empty string), prints *message* to stdout.
+            When any other string, prints that string to stdout instead of *message*.
+        """
+        if isinstance(level, str):
+            level = self._parse_level(level) or Level.INFO
+
         if not GLOBAL_LOGGING_ENABLED or not self._enable:
             return
 
@@ -181,7 +223,7 @@ class Logger:
 
         self._write_to_file(log_entry, date, time_str)
 
-        if print_to_console:
+        if console_message is not None:
             text = message if console_message == "" else console_message
             if self._colorize:
                 color = self._colors.get(int(level), "")
@@ -197,10 +239,29 @@ class Logger:
     def exception(
         self,
         message: str,
-        print_to_console: bool = False,
-        console_message: str = "",
-        level: Level = Level.ERROR,
+        level: LevelLike = Level.ERROR,
+        console_message: str | None = None,
     ) -> None:
+        """
+        Log the current exception with a traceback appended.
+
+        Parameters
+        ----------
+        message : str
+            Text prepended to the traceback in the log entry.
+        level : LevelLike
+            ``"TRACE"``    ( 5)
+            ``"DEBUG"``    (10)
+            ``"INFO"``     (20)
+            ``"WARNING"``  (30)
+            ``"ERROR"``    (40)
+            ``"CRITICAL"`` (50).
+            Also accepts a ``Level`` enum member.
+        console_message : str | None
+            When ``None`` (default), nothing is printed to stdout.
+            When ``""`` (empty string), prints *message* to stdout.
+            When any other string, prints that string to stdout instead of *message*.
+        """
         if sys.exc_info()[0] is None:
             tb_text = ""
         else:
@@ -208,28 +269,65 @@ class Logger:
         self.log(
             f"{message}{tb_text}",
             level=level,
-            print_to_console=print_to_console,
             console_message=console_message,
         )
 
     async def alog(
         self,
         message: str,
-        print_to_console: bool = False,
-        console_message: str = "",
-        level: Level = Level.INFO,
+        level: LevelLike = Level.INFO,
+        console_message: str | None = None,
     ) -> None:
+        """
+        Async version of :meth:`log`.
+
+        Parameters
+        ----------
+        message : str
+            Text to write to the log file.
+        level : LevelLike
+            ``"TRACE"``    ( 5)
+            ``"DEBUG"``    (10)
+            ``"INFO"``     (20)
+            ``"WARNING"``  (30)
+            ``"ERROR"``    (40)
+            ``"CRITICAL"`` (50).
+            Also accepts a ``Level`` enum member.
+        console_message : str | None
+            When ``None`` (default), nothing is printed to stdout.
+            When ``""`` (empty string), prints *message* to stdout.
+            When any other string, prints that string to stdout instead of *message*.
+        """
         await asyncio.to_thread(
-            self.log, message, print_to_console, console_message, level
+            self.log, message, level, console_message
         )
 
     async def aexception(
         self,
         message: str,
-        print_to_console: bool = False,
-        console_message: str = "",
-        level: Level = Level.ERROR,
+        level: LevelLike = Level.ERROR,
+        console_message: str | None = None,
     ) -> None:
+        """
+        Async version of :meth:`exception`.
+
+        Parameters
+        ----------
+        message : str
+            Text prepended to the traceback in the log entry.
+        level : LevelLike
+            ``"TRACE"``    ( 5)
+            ``"DEBUG"``    (10)
+            ``"INFO"``     (20)
+            ``"WARNING"``  (30)
+            ``"ERROR"``    (40)
+            ``"CRITICAL"`` (50).
+            Also accepts a ``Level`` enum member.
+        console_message : str | None
+            When ``None`` (default), nothing is printed to stdout.
+            When ``""`` (empty string), prints *message* to stdout.
+            When any other string, prints that string to stdout instead of *message*.
+        """
         # Capture traceback now — sys.exc_info() is thread-local and will be
         # empty inside the worker thread spawned by asyncio.to_thread().
         if sys.exc_info()[0] is None:
@@ -239,9 +337,8 @@ class Logger:
         await asyncio.to_thread(
             self.log,
             f"{message}{tb_text}",
-            print_to_console,
-            console_message,
             level,
+            console_message,
         )
 
     # ------------------------------------------------------------------

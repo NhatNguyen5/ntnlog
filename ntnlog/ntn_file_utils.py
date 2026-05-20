@@ -12,6 +12,25 @@ from enum import Enum
 
 
 class FileUtilsError(str, Enum):
+    """
+    Error message templates returned by ``file_verify_path`` and
+    ``file_verify_file`` on failure. Each value is a format string; call
+    ``.value.format(...)`` with the appropriate keyword arguments to produce
+    the final message.
+
+    Members
+    -------
+    OUTSIDE_WORKING_DIR              — directory is outside the working directory.
+    NOT_A_DIRECTORY                  — path exists but is not a directory.
+    FILE_READ_OUTSIDE_WORKING_DIR    — read target is outside the working directory.
+    FILE_READ_NOT_FOUND_OR_NOT_REGULAR  — read target does not exist or is not a regular file.
+    FILE_WRITE_OUTSIDE_WORKING_DIR   — write target is outside the working directory.
+    FILE_WRITE_NOT_FOUND_OR_NOT_REGULAR — write target does not exist or is not a regular file.
+    FILE_EXECUTE_OUTSIDE_WORKING_DIR — execute target is outside the working directory.
+    FILE_EXECUTE_NOT_FOUND_OR_NOT_REGULAR — execute target does not exist.
+    FILE_EXECUTE_NOT_PYTHON          — execute target is not a ``.py`` file.
+    """
+
     # Directory related errors
     OUTSIDE_WORKING_DIR = "Error: Cannot list {directory} as it is outside the permitted working directory"
     NOT_A_DIRECTORY = "Error: {directory} is not a directory"
@@ -28,11 +47,32 @@ class FileUtilsError(str, Enum):
 
 
 class FileExecutionError(str, Enum):
+    """
+    Error message templates for Python file execution failures.
+
+    Members
+    -------
+    EXECUTION_FAILED  — the file raised an exception; format with ``error_message``.
+    EXECUTION_TIMEOUT — the file exceeded the time limit; format with ``file_path``
+                        and ``timeout``.
+    """
+
     EXECUTION_FAILED = "Error: executing Python file: {error_message}"
     EXECUTION_TIMEOUT = 'Error: Execution of file "{file_path}" timed out after {timeout} seconds.'
 
 
 class FileOperator(str, Enum):
+    """
+    Operation selector passed to ``file_verify_file``.
+
+    Members
+    -------
+    READ_FILE    — validate that the file exists and is readable.
+    WRITE_FILE   — validate that the path is inside the working directory
+                   (the file need not exist yet).
+    EXECUTE_FILE — validate that the file exists and is a ``.py`` file.
+    """
+
     READ_FILE = "read_file"
     WRITE_FILE = "write_file"
     EXECUTE_FILE = "execute_file"
@@ -40,11 +80,21 @@ class FileOperator(str, Enum):
 
 def file_verify_path(working_directory: str, directory: str) -> str:
     """
-    Verify that *directory* (relative to *working_directory*) exists and is
-    inside the working directory.
+    Verify that *directory* exists inside *working_directory*.
 
-    Returns the resolved path on success, or a ``FileUtilsError`` string on
-    failure.
+    Parameters
+    ----------
+    working_directory : str
+        Absolute path used as the root boundary.
+    directory : str
+        Path to verify, relative to *working_directory*.
+
+    Returns
+    -------
+    str
+        Resolved absolute path on success.
+        A ``FileUtilsError`` message string when the path escapes the working
+        directory or does not exist as a directory.
     """
     path_to_directory = os.path.join(working_directory, directory)
     if (
@@ -61,11 +111,27 @@ def file_verify_path(working_directory: str, directory: str) -> str:
 
 def file_verify_file(working_directory: str, file: str, options: FileOperator | None = None) -> str:
     """
-    Verify that *file* (relative to *working_directory*) is valid for the
-    requested *options* operation.
+    Verify that *file* is valid for the requested *options* operation.
 
-    Returns the resolved path on success, or a ``FileUtilsError`` string on
-    failure.
+    Parameters
+    ----------
+    working_directory : str
+        Absolute path used as the root boundary.
+    file : str
+        Path to verify, relative to *working_directory*.
+    options : FileOperator | None
+        Operation being attempted:
+
+        ``FileOperator.READ_FILE``    — file must exist and be a regular file.
+        ``FileOperator.WRITE_FILE``   — path must be inside the working directory
+                                        (need not exist yet).
+        ``FileOperator.EXECUTE_FILE`` — file must exist and end with ``.py``.
+
+    Returns
+    -------
+    str
+        Resolved absolute path on success.
+        A ``FileUtilsError`` message string when validation fails.
 
     Raises
     ------
