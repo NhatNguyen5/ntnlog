@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-20
+### Changed
+- Updated PyPI short description to reflect v0.4.0 features (log levels, rotation, colorization, async support)
+
 ## [0.4.0] - 2026-05-20
 ### Added
 - `Level` enum (`TRACE=5`, `DEBUG=10`, `INFO=20`, `WARNING=30`, `ERROR=40`, `CRITICAL=50`) — an `IntEnum` so levels compare and sort numerically
