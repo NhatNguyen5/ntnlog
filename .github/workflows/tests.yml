@@ -69,10 +69,10 @@ jobs:
         genbadge coverage -i coverage.xml -o htmlcov/coverage.svg
 
     - name: Upload Pages artifact
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v5
       with:
         path: htmlcov/
 
     - name: Deploy to GitHub Pages
       id: deploy
-      uses: actions/deploy-pages@v4
+      uses: actions/deploy-pages@v5
