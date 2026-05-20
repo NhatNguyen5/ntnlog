@@ -9,7 +9,7 @@ exclude = ["logs*"]
 [project]
 name = "ntnlog"
 version = "0.4.0"
-description = "Lightweight Python logger with timestamped file output, caller stack tracing, and working-directory-scoped file utilities"
+description = "Lightweight Python logger with log levels, rotation, colorization, async support, and working-directory-scoped file utilities"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
