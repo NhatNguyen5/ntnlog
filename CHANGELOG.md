@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-20
+### Added
+- `Level` enum (`TRACE=5`, `DEBUG=10`, `INFO=20`, `WARNING=30`, `ERROR=40`, `CRITICAL=50`) — an `IntEnum` so levels compare and sort numerically
+- Per-instance level threshold via `Logger(level=...)` — entries below the threshold are silently dropped; falls back to `GLOBAL_LOG_LEVEL` when `None`
+- `GLOBAL_LOG_LEVEL` config constant (default `Level.INFO`) used when no instance level is set
+- String coercion for `level=` parameter — accepts case-insensitive strings (`"warning"`, `"WARN"`, etc.) in addition to `Level` members; `"WARN"` is an accepted alias for `WARNING`
+- `[LEVEL]` field in log output format between the timestamp and the optional name bracket
+- `exception()` method — writes a log entry and appends the currently active traceback; safe to call outside an `except` block (writes message only)
+- `alog()` async method — offloads `log()` to a thread via `asyncio.to_thread` so the event loop is not blocked
+- `aexception()` async method — captures `sys.exc_info()` in the calling coroutine before offloading to a thread (thread-local `exc_info` would otherwise be empty in the worker)
+- Size-based log rotation — `Logger(max_bytes=..., backup_count=...)` rotates the log file when it exceeds `max_bytes`, shifting backups and deleting the oldest beyond `backup_count`; `backup_count=0` deletes without keeping backups
+- `GLOBAL_MAX_BYTES` (default `10_000_000`) and `GLOBAL_BACKUP_COUNT` (default `1`) config constants used as fallbacks when instance values are `None`
+- Per-instance console colorization via `Logger(colorize=True)` — wraps stdout output in ANSI color codes; file output is never colorized
+- `colors` constructor parameter — `dict[int, str]` of per-level ANSI overrides merged on top of `GLOBAL_LOG_COLORS`
+- `GLOBAL_LOG_COLORS` config constant mapping each `Level` to a default ANSI color code
+- Automated coverage reporting: `pytest-cov` runs on every `pytest` call; CI deploys an HTML report and SVG badge to GitHub Pages on push to `main`
+
+### Changed
+- `level` is now the last positional parameter on `log()`, `__call__`, `exception()`, `alog()`, and `aexception()` — `print_to_console` remains second, `console_message` third
+- Test suite expanded from 102 to 224 tests; three tests that previously passed vacuously were corrected to assert actual behaviour
+
 ## [0.3.0] - 2026-05-18
 ### Added
 - `name` parameter on `Logger` for multi-instance identification — named loggers include a `[name]` bracket in every log entry between the timestamp and caller info
