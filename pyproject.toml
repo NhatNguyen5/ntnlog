@@ -8,7 +8,7 @@ exclude = ["logs*"]
 
 [project]
 name = "ntnlog"
-version = "0.3.0"
+version = "0.4.0"
 description = "Lightweight Python logger with timestamped file output, caller stack tracing, and working-directory-scoped file utilities"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,13 +28,14 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "bump2version"]
+dev = ["pytest", "pytest-cov", "coverage-badge", "bump2version"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+addopts = "--cov=ntnlog --cov-report=term-missing"
 
 [project.urls]
 CreatorGithub = "https://github.com/NhatNguyen5"
