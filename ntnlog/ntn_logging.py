@@ -159,13 +159,10 @@ class Logger:
         message : str
             Text to write to the log file.
         level : LevelLike
-            ``"TRACE"``    ( 5)
-            ``"DEBUG"``    (10)
-            ``"INFO"``     (20)
-            ``"WARNING"``  (30)
-            ``"ERROR"``    (40)
+            Severity of this entry. Accepts a ``Level`` enum member or a
+            case-insensitive string: ``"TRACE"`` (5), ``"DEBUG"`` (10),
+            ``"INFO"`` (20), ``"WARNING"`` (30), ``"ERROR"`` (40),
             ``"CRITICAL"`` (50).
-            Also accepts a ``Level`` enum member.
         console_message : str | None
             When ``None`` (default), nothing is printed to stdout.
             When ``""`` (empty string), prints *message* to stdout.
@@ -187,13 +184,10 @@ class Logger:
         message : str
             Text to write to the log file.
         level : LevelLike
-            ``"TRACE"``    ( 5)
-            ``"DEBUG"``    (10)
-            ``"INFO"``     (20)
-            ``"WARNING"``  (30)
-            ``"ERROR"``    (40)
+            Severity of this entry. Accepts a ``Level`` enum member or a
+            case-insensitive string: ``"TRACE"`` (5), ``"DEBUG"`` (10),
+            ``"INFO"`` (20), ``"WARNING"`` (30), ``"ERROR"`` (40),
             ``"CRITICAL"`` (50).
-            Also accepts a ``Level`` enum member.
         console_message : str | None
             When ``None`` (default), nothing is printed to stdout.
             When ``""`` (empty string), prints *message* to stdout.
@@ -250,13 +244,10 @@ class Logger:
         message : str
             Text prepended to the traceback in the log entry.
         level : LevelLike
-            ``"TRACE"``    ( 5)
-            ``"DEBUG"``    (10)
-            ``"INFO"``     (20)
-            ``"WARNING"``  (30)
-            ``"ERROR"``    (40)
+            Severity of this entry. Accepts a ``Level`` enum member or a
+            case-insensitive string: ``"TRACE"`` (5), ``"DEBUG"`` (10),
+            ``"INFO"`` (20), ``"WARNING"`` (30), ``"ERROR"`` (40),
             ``"CRITICAL"`` (50).
-            Also accepts a ``Level`` enum member.
         console_message : str | None
             When ``None`` (default), nothing is printed to stdout.
             When ``""`` (empty string), prints *message* to stdout.
@@ -286,13 +277,10 @@ class Logger:
         message : str
             Text to write to the log file.
         level : LevelLike
-            ``"TRACE"``    ( 5)
-            ``"DEBUG"``    (10)
-            ``"INFO"``     (20)
-            ``"WARNING"``  (30)
-            ``"ERROR"``    (40)
+            Severity of this entry. Accepts a ``Level`` enum member or a
+            case-insensitive string: ``"TRACE"`` (5), ``"DEBUG"`` (10),
+            ``"INFO"`` (20), ``"WARNING"`` (30), ``"ERROR"`` (40),
             ``"CRITICAL"`` (50).
-            Also accepts a ``Level`` enum member.
         console_message : str | None
             When ``None`` (default), nothing is printed to stdout.
             When ``""`` (empty string), prints *message* to stdout.
@@ -316,13 +304,10 @@ class Logger:
         message : str
             Text prepended to the traceback in the log entry.
         level : LevelLike
-            ``"TRACE"``    ( 5)
-            ``"DEBUG"``    (10)
-            ``"INFO"``     (20)
-            ``"WARNING"``  (30)
-            ``"ERROR"``    (40)
+            Severity of this entry. Accepts a ``Level`` enum member or a
+            case-insensitive string: ``"TRACE"`` (5), ``"DEBUG"`` (10),
+            ``"INFO"`` (20), ``"WARNING"`` (30), ``"ERROR"`` (40),
             ``"CRITICAL"`` (50).
-            Also accepts a ``Level`` enum member.
         console_message : str | None
             When ``None`` (default), nothing is printed to stdout.
             When ``""`` (empty string), prints *message* to stdout.
