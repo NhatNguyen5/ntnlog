@@ -102,11 +102,11 @@ class TestParseLevelInit:
         assert log._level is Level.WARNING
 
     def test_level_string_uppercase(self):
-        log = Logger(level="WARNING")
+        log = Logger(level="WARN")
         assert log._level is Level.WARNING
 
     def test_level_string_lowercase(self):
-        log = Logger(level="warning")
+        log = Logger(level="warn")
         assert log._level is Level.WARNING
 
     def test_level_string_mixed_case(self):
@@ -153,14 +153,14 @@ class TestParseLevelInit:
         with pytest.raises(ValueError, match="TRACE"):
             Logger(level="GARBAGE")
 
-    def test_string_level_filters_correctly(self):
+    def test_string_level_all_written_to_file(self):
         with _in_temp_dir():
             log = _make_logger(level="ERROR")
-            log.log("dropped", level=Level.WARNING)
-            log.log("kept", level=Level.ERROR)
+            log.log("warning msg", level=Level.WARNING)
+            log.log("error msg", level=Level.ERROR)
             content = _read_log()
-        assert "kept" in content
-        assert "dropped" not in content
+        assert "warning msg" in content
+        assert "error msg" in content
 
 
 # ---------------------------------------------------------------------------
@@ -513,11 +513,12 @@ class TestConsoleOutput:
             log.log("hello", console_message=None)
         assert capsys.readouterr().out == ""
 
-    def test_console_message_empty_string_prints_message(self, capsys):
+    def test_console_message_empty_string_prints_log_entry(self, capsys):
         with _in_temp_dir():
             log = _make_logger()
             log.log("hello", console_message="")
-        assert capsys.readouterr().out.strip() == "hello"
+            log_lines = [l for l in _read_log().splitlines() if l.startswith("[")]
+        assert capsys.readouterr().out.strip() == "\n".join(log_lines)
 
     def test_console_message_string_overrides_output(self, capsys):
         with _in_temp_dir():
@@ -790,57 +791,71 @@ class TestLevel:
 # ---------------------------------------------------------------------------
 
 class TestLogLevelFiltering:
-    def test_entry_below_threshold_not_written(self):
-        log = Logger(level=Level.WARNING)
-        with patch("builtins.open") as mock_open:
-            with patch("ntnlog.ntn_logging.file_verify_path", return_value="/tmp"):
-                log.log("silent", level=Level.INFO)
-                mock_open.assert_not_called()
+    def test_entry_below_threshold_still_written_to_file(self):
+        with _in_temp_dir():
+            log = _make_logger(level=Level.WARNING)
+            log.log("silent", level=Level.INFO)
+            content = _read_log()
+        assert "silent" in content
 
-    def test_entry_at_threshold_is_written(self):
+    def test_entry_at_threshold_written_to_file(self):
         with _in_temp_dir():
             log = _make_logger(level=Level.WARNING)
             log.log("visible", level=Level.WARNING)
             content = _read_log()
-            assert "visible" in content
+        assert "visible" in content
 
-    def test_entry_above_threshold_is_written(self):
+    def test_entry_above_threshold_written_to_file(self):
         with _in_temp_dir():
             log = _make_logger(level=Level.WARNING)
             log.log("critical", level=Level.CRITICAL)
             content = _read_log()
-            assert "critical" in content
+        assert "critical" in content
 
-    def test_trace_below_info_default_not_written(self):
-        log = Logger()
-        with patch("builtins.open") as mock_open:
-            with patch("ntnlog.ntn_logging.file_verify_path", return_value="/tmp"):
-                log.log("trace msg", level=Level.TRACE)
-                mock_open.assert_not_called()
+    def test_trace_below_default_still_written_to_file(self):
+        with _in_temp_dir():
+            log = _make_logger()
+            log.log("trace msg", level=Level.TRACE)
+            content = _read_log()
+        assert "trace msg" in content
 
     def test_info_at_default_threshold_written(self):
         with _in_temp_dir():
             log = _make_logger()
             log.log("info msg", level=Level.INFO)
             content = _read_log()
-            assert "info msg" in content
+        assert "info msg" in content
 
-    def test_global_level_used_when_instance_level_is_none(self):
+    def test_below_threshold_suppressed_on_console(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger(level=Level.WARNING)
+            log.log("quiet", level=Level.INFO, console_message="")
+        assert capsys.readouterr().out == ""
+
+    def test_at_threshold_printed_to_console(self, capsys):
+        with _in_temp_dir():
+            log = _make_logger(level=Level.WARNING)
+            log.log("loud", level=Level.WARNING, console_message="")
+        assert "loud" in capsys.readouterr().out
+
+    def test_global_level_used_when_instance_level_is_none(self, capsys):
         with _in_temp_dir():
             log = _make_logger()
             assert log._level is None
             with patch("ntnlog.ntn_logging.GLOBAL_LOG_LEVEL", Level.CRITICAL):
-                log.log("below", level=Level.ERROR)
-            log_files = [f for f in os.listdir("logs") if f.endswith(".txt")] if os.path.exists("logs") else []
-        assert log_files == []
+                log.log("below", level=Level.ERROR, console_message="")
+            content = _read_log()
+        assert "below" in content
+        assert capsys.readouterr().out == ""
 
-    def test_instance_level_overrides_global(self):
+    def test_instance_level_overrides_global(self, capsys):
         with _in_temp_dir():
             log = _make_logger(level=Level.TRACE)
             with patch("ntnlog.ntn_logging.GLOBAL_LOG_LEVEL", Level.CRITICAL):
-                log.log("trace visible", level=Level.TRACE)
+                log.log("trace visible", level=Level.TRACE, console_message="")
             content = _read_log()
-            assert "trace visible" in content
+        assert "trace visible" in content
+        assert "trace visible" in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------------------
@@ -865,7 +880,7 @@ class TestLogLevelFormat:
     def test_string_level_coerced_in_log_call(self):
         with _in_temp_dir():
             log = _make_logger()
-            log.log("msg", "WARNING")
+            log.log("msg", "WARN")
             content = _read_log()
         assert "[WARNING]" in content
 
@@ -909,76 +924,58 @@ class TestLogLevelFormat:
 # ---------------------------------------------------------------------------
 
 class TestLogRotation:
+    # Patch helpers — rotation is now global-only
+    _MAX  = "ntnlog.ntn_logging.GLOBAL_MAX_BYTES"
+    _BACK = "ntnlog.ntn_logging.GLOBAL_BACKUP_COUNT"
+
     def test_rotation_creates_backup_when_size_exceeded(self):
-        with _in_temp_dir():
-            log = _make_logger(max_bytes=50, backup_count=1)
-            # Write enough to exceed 50 bytes
+        with _in_temp_dir(), patch(self._MAX, 50), patch(self._BACK, 1):
+            log = _make_logger()
             for _ in range(5):
                 log.log("x" * 20)
-            log_files = os.listdir("logs")
-            assert any(f.endswith(".txt.1") for f in log_files)
+            assert any(f.endswith(".txt.1") for f in os.listdir("logs"))
 
     def test_rotation_fresh_file_has_header(self):
-        with _in_temp_dir():
-            log = _make_logger(max_bytes=50, backup_count=1)
+        with _in_temp_dir(), patch(self._MAX, 50), patch(self._BACK, 1):
+            log = _make_logger()
             for _ in range(6):
                 log.log("x" * 20)
-            content = _read_log()
-            assert "Log file created on" in content
+            assert "Log file created on" in _read_log()
 
     def test_no_rotation_below_threshold(self):
-        with _in_temp_dir():
-            log = _make_logger(max_bytes=10_000_000, backup_count=1)
+        with _in_temp_dir(), patch(self._MAX, 10_000_000), patch(self._BACK, 1):
+            log = _make_logger()
             log.log("small entry")
-            log_files = os.listdir("logs")
-            assert not any(f.endswith(".txt.1") for f in log_files)
+            assert not any(f.endswith(".txt.1") for f in os.listdir("logs"))
 
     def test_backup_shift_with_backup_count_2(self):
-        with _in_temp_dir():
-            log = _make_logger(max_bytes=50, backup_count=2)
-            # Trigger two rotations
+        with _in_temp_dir(), patch(self._MAX, 50), patch(self._BACK, 2):
+            log = _make_logger()
             for _ in range(12):
                 log.log("x" * 20)
-            log_files = os.listdir("logs")
-            assert any(f.endswith(".txt.2") for f in log_files)
+            assert any(f.endswith(".txt.2") for f in os.listdir("logs"))
 
     def test_files_beyond_backup_count_deleted(self):
-        with _in_temp_dir():
-            log = _make_logger(max_bytes=50, backup_count=1)
-            # Trigger enough rotations to verify no .2 is left
+        with _in_temp_dir(), patch(self._MAX, 50), patch(self._BACK, 1):
+            log = _make_logger()
             for _ in range(15):
                 log.log("x" * 20)
-            log_files = os.listdir("logs")
-            assert not any(f.endswith(".txt.2") for f in log_files)
+            assert not any(f.endswith(".txt.2") for f in os.listdir("logs"))
 
     def test_backup_count_zero_deletes_current(self):
-        with _in_temp_dir():
-            log = _make_logger(max_bytes=50, backup_count=0)
+        with _in_temp_dir(), patch(self._MAX, 50), patch(self._BACK, 0):
+            log = _make_logger()
             for _ in range(5):
                 log.log("x" * 20)
             log_files = os.listdir("logs")
-            # No .1 backup should ever be created
             assert not any(f.endswith(".txt.1") for f in log_files)
-            # Current file should still exist (written after deletion)
             assert any(f.endswith(".txt") and not f.endswith(".txt.1") for f in log_files)
 
-    def test_per_instance_max_bytes_overrides_global(self):
-        with _in_temp_dir():
-            # Use a tiny max_bytes to trigger rotation quickly
-            log = _make_logger(max_bytes=100, backup_count=1)
-            for _ in range(5):
-                log.log("x" * 30)
-            log_files = os.listdir("logs")
-            assert any(f.endswith(".txt.1") for f in log_files)
-
-    def test_global_max_bytes_used_when_instance_none(self):
+    def test_global_defaults_prevent_rotation_on_small_write(self):
         with _in_temp_dir():
             log = _make_logger()
-            assert log._max_bytes is None
-            # Write a small amount — well under 10MB global default
             log.log("small")
-            log_files = os.listdir("logs")
-            assert not any(f.endswith(".txt.1") for f in log_files)
+            assert not any(f.endswith(".txt.1") for f in os.listdir("logs"))
 
     @staticmethod
     def _rotation_worker(log, errors, n=20):
@@ -989,8 +986,8 @@ class TestLogRotation:
             errors.append(e)
 
     def test_rotation_thread_safe_with_tiny_max_bytes(self):
-        with _in_temp_dir():
-            log = _make_logger(max_bytes=100, backup_count=2)
+        with _in_temp_dir(), patch(self._MAX, 100), patch(self._BACK, 2):
+            log = _make_logger()
             errors = []
             threads = [threading.Thread(target=self._rotation_worker, args=(log, errors)) for _ in range(4)]
             for t in threads:
@@ -1001,7 +998,7 @@ class TestLogRotation:
 
     def test_rotation_thread_safe_error_capture_works(self):
         with _in_temp_dir():
-            log = _make_logger(max_bytes=100, backup_count=2)
+            log = _make_logger()
             errors = []
             with patch.object(log, "_write_to_file", side_effect=OSError("forced")):
                 threads = [threading.Thread(target=self._rotation_worker, args=(log, errors, 5)) for _ in range(4)]
@@ -1011,16 +1008,6 @@ class TestLogRotation:
                     t.join()
             assert len(errors) > 0
             assert all(isinstance(e, OSError) for e in errors)
-
-    def test_init_stores_max_bytes_and_backup_count(self):
-        log = Logger(max_bytes=512, backup_count=3)
-        assert log._max_bytes == 512
-        assert log._backup_count == 3
-
-    def test_init_defaults_are_none(self):
-        log = Logger()
-        assert log._max_bytes is None
-        assert log._backup_count is None
 
 
 # ---------------------------------------------------------------------------
@@ -1192,16 +1179,15 @@ class TestExceptionCapturing:
         captured = capsys.readouterr()
         assert "Custom!" in captured.out
 
-    def test_exception_respects_level_threshold(self):
+    def test_exception_always_written_to_file(self):
         with _in_temp_dir():
             log = _make_logger(level=Level.CRITICAL)
             try:
                 raise ValueError("err")
             except ValueError:
                 log.exception("below threshold", level=Level.ERROR)
-            # ERROR < CRITICAL so nothing should be written
-            log_files = [f for f in os.listdir("logs") if f.endswith(".txt")] if os.path.exists("logs") else []
-        assert log_files == []
+            content = _read_log()
+        assert "below threshold" in content
 
     def test_exception_traceback_contains_line_info(self):
         with _in_temp_dir():
@@ -1241,12 +1227,12 @@ class TestAsyncSupport:
             content = _read_log()
         assert "[WARNING]" in content
 
-    def test_alog_respects_level_threshold(self):
+    def test_alog_always_written_to_file(self):
         with _in_temp_dir():
             log = _make_logger(level=Level.ERROR)
             _asyncio.run(log.alog("below threshold", level=Level.DEBUG))
-            log_files = [f for f in os.listdir("logs") if f.endswith(".txt")] if os.path.exists("logs") else []
-        assert log_files == []
+            content = _read_log()
+        assert "below threshold" in content
 
     def test_alog_print_to_console(self, capsys):
         with _in_temp_dir():

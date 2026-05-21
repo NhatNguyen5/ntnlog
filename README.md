@@ -6,15 +6,16 @@ Lightweight Python logger with timestamped file output, caller stack tracing, an
 
 ## Features
 
-- **Log levels**: `TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` with per-instance and global thresholds
+- **Log levels**: `TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` — everything is always written to file; level controls console output only
 - **Caller stack tracing**: Automatically records where in your code a log came from
 - **Timestamped file output**: Logs written to daily files with no configuration required
-- **Log rotation**: Size-based rotation with configurable backup count
+- **Log rotation**: Size-based rotation configured globally via `GLOBAL_MAX_BYTES` and `GLOBAL_BACKUP_COUNT`
 - **Console colorization**: ANSI color output per log level, customizable per instance
 - **Exception capturing**: `exception()` attaches the active traceback automatically
 - **Async support**: `alog()` and `aexception()` for async/await code
 - **File utilities**: Safe, working-directory-scoped file operations with error handling
 - **Thread-safe**: File writes are protected by a per-instance lock
+- **PEP 561 typed**: Full type annotation support — Pylance and mypy enforce valid log levels at edit time
 
 ## Installation
 
@@ -30,8 +31,8 @@ from ntnlog import Logger, Level
 app_log = Logger()
 
 app_log("Application started")
-app_log("Important message", console_message="")      # also prints to stdout
-app_log("Something suspicious", Level.WARNING)         # WARNING level, no console
+app_log("Important message", console_message="")      # prints full log entry to stdout
+app_log("Something suspicious", Level.WARNING)         # always written to file, no console
 
 # Exception capturing — attaches the active traceback automatically
 try:
@@ -53,12 +54,9 @@ worker_logger = Logger(name="worker")
 # Output: [2026-05-13 15:46:34][INFO][app][main.py:12] message
 #         [2026-05-13 15:46:34][INFO][worker][worker.py:8] message
 
-# Level filtering — string or enum, both work
+# Level filtering — controls console output only, everything still written to file
 app_log = Logger(level=Level.WARNING)
-app_log = Logger(level="warning")
-
-# Log rotation
-app_log = Logger(max_bytes=5_000_000, backup_count=3)
+app_log = Logger(level="WARN")
 
 # Console colorization
 app_log = Logger(colorize=True)

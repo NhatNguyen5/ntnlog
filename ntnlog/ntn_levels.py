@@ -11,7 +11,7 @@ class Level(IntEnum):
     TRACE    :  5  — Fine-grained diagnostic noise, below DEBUG.
     DEBUG    : 10  — Development-time diagnostics.
     INFO     : 20  — Normal operational messages.
-    WARNING  : 30  — Something unexpected but recoverable.
+    WARN     : 30  — Something unexpected but recoverable.
     ERROR    : 40  — A failure that needs attention.
     CRITICAL : 50  — A severe failure; the process may not be able to continue.
     """
@@ -24,5 +24,5 @@ class Level(IntEnum):
     CRITICAL = 50
 
 
-LevelStr: TypeAlias = Literal["TRACE", "DEBUG", "INFO", "WARNING", "WARN", "ERROR", "CRITICAL"]
+LevelStr: TypeAlias = Literal["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"]
 LevelLike: TypeAlias = Level | LevelStr

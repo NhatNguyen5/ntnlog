@@ -15,9 +15,7 @@ Logger(
     log_dir: str = "logs",
     project_dir: str | None = None,
     name: str | None = None,
-    level: Level | str | None = None,
-    max_bytes: int | None = None,
-    backup_count: int | None = None,
+    level: LevelLike | None = None,
     colorize: bool = False,
     colors: dict[int, str] | None = None,
 )
@@ -28,9 +26,7 @@ Logger(
 | `log_dir` | `str` | `"logs"` | Directory where log files are written. Created automatically if it doesn't exist. |
 | `project_dir` | `str` | `None` | Root of your project source tree. When set, only frames inside this directory appear in caller info. When `None`, a built-in blocklist filters out framework/infra files. |
 | `name` | `str` | `None` | Optional label for this logger instance. Appears as a bracket segment in every log entry. |
-| `level` | `Level \| str \| None` | `None` | Minimum level threshold. Entries below this level are silently dropped. Accepts a `Level` member or a case-insensitive string (`"warning"`, `"WARN"`, etc.). Falls back to `GLOBAL_LOG_LEVEL` when `None`. |
-| `max_bytes` | `int \| None` | `None` | File size threshold for rotation. Falls back to `GLOBAL_MAX_BYTES` (10 MB) when `None`. |
-| `backup_count` | `int \| None` | `None` | Number of backup files kept on rotation. Falls back to `GLOBAL_BACKUP_COUNT` (1) when `None`. Set to `0` to delete instead of rotating. |
+| `level` | `LevelLike \| None` | `None` | Minimum level threshold for **console output only**. All entries are always written to the file. Accepts a `Level` member or a case-insensitive string (`"WARN"`, `"ERROR"`, etc.). Falls back to `GLOBAL_LOG_LEVEL` when `None`. |
 | `colorize` | `bool` | `False` | Wrap console output in ANSI color codes. File output is never colorized. |
 | `colors` | `dict[int, str] \| None` | `None` | Per-level ANSI color overrides. Merged on top of `GLOBAL_LOG_COLORS`; omitted levels keep the global default. Keys are `int(Level)`. |
 
@@ -58,7 +54,7 @@ Entries are appended to `<log_dir>/<YYYY-MM-DD>_logging.txt`. A new file is crea
 
 ### Log rotation
 
-When a log file exceeds `max_bytes`, it is rotated before the next write:
+Rotation is configured globally via `GLOBAL_MAX_BYTES` and `GLOBAL_BACKUP_COUNT`. When a log file exceeds the threshold, it is rotated before the next write:
 
 - The oldest backup beyond `backup_count` is deleted
 - Existing backups are shifted: `.txt.1` → `.txt.2`, etc.
@@ -66,11 +62,11 @@ When a log file exceeds `max_bytes`, it is rotated before the next write:
 - A fresh file is opened with a new header
 
 ```python
-app_log = Logger(max_bytes=5_000_000, backup_count=3)
-# Keeps: log.txt, log.txt.1, log.txt.2, log.txt.3
+from ntnlog.ntn_config import GLOBAL_MAX_BYTES, GLOBAL_BACKUP_COUNT
+# defaults: 10 MB threshold, 1 backup kept
 ```
 
-Set `backup_count=0` to simply delete the current file on rotation (no backups kept).
+Set `GLOBAL_BACKUP_COUNT = 0` to simply delete the current file on rotation (no backups kept).
 
 ---
 
@@ -82,7 +78,7 @@ Write a log entry.
 
 ```python
 app_log("Server started")
-app_log("Request received", console_message="")           # also prints to stdout
+app_log("Request received", console_message="")           # prints full log entry to stdout
 app_log("Error occurred", console_message="Check logs")   # prints override to stdout
 app_log("Debug detail", Level.DEBUG)
 app_log("Warning!", Level.WARNING, "Hey!")                # level + console override
@@ -92,7 +88,7 @@ app_log("Warning!", Level.WARNING, "Hey!")                # level + console over
 |---|---|---|---|
 | `message` | `str` | — | Message written to the log file. |
 | `level` | `Level \| str` | `Level.INFO` | Level for this entry. Dropped silently if below the instance threshold. |
-| `console_message` | `str \| None` | `None` | `None` — no stdout output. `""` — prints `message` to stdout. Any other string — prints that string to stdout instead of `message`. |
+| `console_message` | `str \| None` | `None` | `None` — no stdout output. `""` — prints the full formatted log entry to stdout. Any other string — prints that string to stdout instead. |
 
 #### `__call__` (shorthand)
 
@@ -122,7 +118,7 @@ app_log.exception("No active exception")
 |---|---|---|---|
 | `message` | `str` | — | Message written to the log file. |
 | `level` | `Level \| str` | `Level.ERROR` | Level for this entry. |
-| `console_message` | `str \| None` | `None` | `None` — no stdout output. `""` — prints `message` to stdout. Any other string — prints that string to stdout instead of `message`. |
+| `console_message` | `str \| None` | `None` | `None` — no stdout output. `""` — prints the full formatted log entry to stdout. Any other string — prints that string to stdout instead. |
 
 #### `alog(message, level=Level.INFO, console_message=None)` *(async)*
 
@@ -182,8 +178,14 @@ Level.CRITICAL  # 50
 `Level` is an `IntEnum` — levels compare and sort numerically. The default threshold is `Level.INFO`, meaning `TRACE` and `DEBUG` entries are dropped unless the threshold is lowered.
 
 String aliases accepted by `Logger(level=...)` and `log(..., level=...)`:
-- Case-insensitive: `"info"`, `"INFO"`, `"Info"` all work
-- `"WARN"` / `"warn"` are accepted as aliases for `WARNING`
+- Case-insensitive: `"INFO"`, `"info"`, `"Info"` all work
+- `"WARN"` is the canonical string alias for `Level.WARNING`
+
+`LevelStr` and `LevelLike` are exported from `ntnlog` for use in type annotations:
+
+```python
+from ntnlog import LevelStr, LevelLike
+```
 
 ---
 
@@ -325,15 +327,22 @@ Log output:
 
 ### Level filtering
 
+`level` controls console output only — all entries are always written to the file.
+
 ```python
 from ntnlog import Logger, Level
 
 app_log = Logger(level=Level.WARNING)
 
-app_log("Debug detail", level=Level.DEBUG)    # dropped — below threshold
-app_log("All good", level=Level.INFO)         # dropped — below threshold
-app_log("Disk almost full", level=Level.WARNING)   # written
-app_log("Service crashed", level=Level.CRITICAL)   # written
+# All four written to file
+app_log("Debug detail", Level.DEBUG)
+app_log("All good", Level.INFO)
+app_log("Disk almost full", Level.WARNING)
+app_log("Service crashed", Level.CRITICAL)
+
+# Console output only for WARNING and above (when console_message is set)
+app_log("Debug detail", Level.DEBUG, console_message="")    # suppressed
+app_log("Disk almost full", Level.WARNING, console_message="")  # printed
 ```
 
 ### Exception capturing
@@ -371,14 +380,15 @@ asyncio.run(handle_request())
 ### Log rotation
 
 ```python
-from ntnlog import Logger
+import ntnlog.ntn_config as config
 
 # Rotate at 5 MB, keep 3 backups
-app_log = Logger(max_bytes=5_000_000, backup_count=3)
+config.GLOBAL_MAX_BYTES   = 5_000_000
+config.GLOBAL_BACKUP_COUNT = 3
 # Files: log.txt, log.txt.1, log.txt.2, log.txt.3
 
 # Rotate and delete (no backups)
-app_log = Logger(max_bytes=1_000_000, backup_count=0)
+config.GLOBAL_BACKUP_COUNT = 0
 ```
 
 ### Console colorization

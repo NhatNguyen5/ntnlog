@@ -7,8 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.1] - 2026-05-20
+## [0.6.0] - 2026-05-21
 ### Changed
+- **Breaking**: `max_bytes` and `backup_count` removed from `Logger.__init__()` — log rotation is now configured globally via `GLOBAL_MAX_BYTES` and `GLOBAL_BACKUP_COUNT` in `ntn_config.py`; all logger instances share the same rotation settings
+- **Breaking**: `level` no longer filters file output — all entries are always written to the log file; `level` now only controls whether console output is printed (when `console_message` is set)
+
+**Migration:**
+```python
+# Before
+app_log = Logger(max_bytes=5_000_000, backup_count=3)
+
+# After
+import ntnlog.ntn_config as config
+config.GLOBAL_MAX_BYTES    = 5_000_000
+config.GLOBAL_BACKUP_COUNT = 3
+app_log = Logger()
+```
+
+## [0.5.1] - 2026-05-21
+### Added
+- `py.typed` marker (PEP 561) — Pylance and mypy now enforce `LevelLike` constraints on `level` parameters at edit time
+- `LevelStr` and `LevelLike` exported from `ntnlog` for use in type annotations
+
+### Changed
+- `console_message=""` now prints the full formatted log entry to stdout (identical to what is written to the file) instead of just the plain message text
+- `"WARN"` is now the canonical string alias for `Level.WARNING` in `LevelStr`; type checkers will flag `"WARNING"` as an invalid string (runtime still accepts it via alias)
+- `Logger` constructor `level` parameter type tightened from `Level | str | None` to `LevelLike | None`
 - Renamed example variable from `log` to `app_log` across README and wiki pages to avoid confusion with the `.log()` method name; all examples now use the callable form `app_log("msg")`
 - Reformatted `level` parameter docstring for readable IntelliSense tooltips
 - Added `twine check` step to publish workflow to catch README rendering issues before publishing to PyPI

@@ -3,7 +3,7 @@ ntnlog - Lightweight Python logger with timestamped file output,
 caller stack tracing, and working-directory-scoped file utilities.
 """
 
-from .ntn_levels import Level
+from .ntn_levels import Level, LevelStr, LevelLike
 from .ntn_logging import Logger
 from .ntn_config import (
     GLOBAL_LOGGING_ENABLED,
@@ -22,11 +22,13 @@ from .ntn_file_utils import (
 )
 from . import ntn_utils as utils
 
-__version__ = "0.5.1"
+__version__ = "0.6.0"
 __author__ = "Nathan T Nguyen"
 
 __all__ = [
     "Level",
+    "LevelStr",
+    "LevelLike",
     "Logger",
     "GLOBAL_LOGGING_ENABLED",
     "GLOBAL_LOG_TRACING_ENABLED",

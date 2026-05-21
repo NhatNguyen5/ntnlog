@@ -6,9 +6,12 @@ build-backend = "setuptools.build_meta"
 include = ["ntnlog*"]
 exclude = ["logs*"]
 
+[tool.setuptools.package-data]
+ntnlog = ["py.typed"]
+
 [project]
 name = "ntnlog"
-version = "0.5.1"
+version = "0.6.0"
 description = "Lightweight Python logger with log levels, rotation, colorization, async support, and working-directory-scoped file utilities"
 readme = "README.md"
 requires-python = ">=3.10"

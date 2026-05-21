@@ -83,11 +83,12 @@ class Logger:
     name : str | None
         Optional label for this logger instance. Appears as a bracket segment
         in every log entry.
-    level : Level | str | None
-        Minimum level threshold for this instance. Accepts a ``Level`` member
-        or a case-insensitive string name (e.g. ``"warn"``, ``"WARNING"``).
-        Entries below this level are silently dropped. When ``None``,
-        ``GLOBAL_LOG_LEVEL`` is used.
+    level : LevelLike | None
+        Minimum level threshold for console output. Accepts a ``Level`` member
+        or a case-insensitive string: ``"TRACE"``, ``"DEBUG"``, ``"INFO"``,
+        ``"WARN"``, ``"ERROR"``, ``"CRITICAL"``. Entries are always written to
+        the file; only console output is suppressed below this threshold. When
+        ``None``, ``GLOBAL_LOG_LEVEL`` is used.
     colorize : bool
         When ``True``, console output is wrapped in ANSI color codes taken
         from *colors* (or ``GLOBAL_LOG_COLORS`` when *colors* is ``None``).
@@ -96,6 +97,11 @@ class Logger:
         Per-instance color map keyed by ``int(Level)``. Merged on top of
         ``GLOBAL_LOG_COLORS`` at construction time; missing entries fall back
         to the global value.
+
+    Notes
+    -----
+    Log rotation is controlled globally via ``GLOBAL_MAX_BYTES`` and
+    ``GLOBAL_BACKUP_COUNT`` in ``ntn_config.py``.
     """
 
     DEFAULT_LOG_DIR = "logs"
@@ -103,7 +109,7 @@ class Logger:
     _LEVEL_ALIASES: dict[str, str] = {"WARN": "WARNING"}
 
     @staticmethod
-    def _parse_level(value: "Level | str | None") -> "Level | None":
+    def _parse_level(value: LevelLike | None) -> Level | None:
         if value is None:
             return None
         if isinstance(value, Level):
@@ -121,9 +127,7 @@ class Logger:
         log_dir: str = DEFAULT_LOG_DIR,
         project_dir: str | None = None,
         name: str | None = None,
-        level: "Level | str | None" = None,
-        max_bytes: int | None = None,
-        backup_count: int | None = None,
+        level: LevelLike | None = None,
         colorize: bool = False,
         colors: dict[int, str] | None = None,
     ):
@@ -135,8 +139,6 @@ class Logger:
         )
         self._name: str | None = name
         self._level: Level | None = self._parse_level(level)
-        self._max_bytes: int | None = max_bytes
-        self._backup_count: int | None = backup_count
         self._colorize: bool = colorize
         self._colors: dict[int, str] = {**GLOBAL_LOG_COLORS, **(colors or {})}
         self._lock = threading.Lock()
@@ -159,13 +161,14 @@ class Logger:
         message : str
             Text to write to the log file.
         level : LevelLike
-            Severity of this entry. Accepts a ``Level`` enum member or a
-            case-insensitive string: ``"TRACE"`` (5), ``"DEBUG"`` (10),
-            ``"INFO"`` (20), ``"WARNING"`` (30), ``"ERROR"`` (40),
-            ``"CRITICAL"`` (50).
+            Severity of this entry. Always written to file. Suppresses console
+            output when below the instance threshold. Accepts a ``Level`` enum
+            member or a case-insensitive string: ``"TRACE"`` (5),
+            ``"DEBUG"`` (10), ``"INFO"`` (20), ``"WARN"`` (30),
+            ``"ERROR"`` (40), ``"CRITICAL"`` (50).
         console_message : str | None
             When ``None`` (default), nothing is printed to stdout.
-            When ``""`` (empty string), prints *message* to stdout.
+            When ``""`` (empty string), prints the full formatted log entry to stdout.
             When any other string, prints that string to stdout instead of *message*.
         """
         self.log(message, level=level, console_message=console_message)
@@ -184,23 +187,20 @@ class Logger:
         message : str
             Text to write to the log file.
         level : LevelLike
-            Severity of this entry. Accepts a ``Level`` enum member or a
-            case-insensitive string: ``"TRACE"`` (5), ``"DEBUG"`` (10),
-            ``"INFO"`` (20), ``"WARNING"`` (30), ``"ERROR"`` (40),
-            ``"CRITICAL"`` (50).
+            Severity of this entry. Always written to file. Suppresses console
+            output when below the instance threshold. Accepts a ``Level`` enum
+            member or a case-insensitive string: ``"TRACE"`` (5),
+            ``"DEBUG"`` (10), ``"INFO"`` (20), ``"WARN"`` (30),
+            ``"ERROR"`` (40), ``"CRITICAL"`` (50).
         console_message : str | None
             When ``None`` (default), nothing is printed to stdout.
-            When ``""`` (empty string), prints *message* to stdout.
+            When ``""`` (empty string), prints the full formatted log entry to stdout.
             When any other string, prints that string to stdout instead of *message*.
         """
         if isinstance(level, str):
             level = self._parse_level(level) or Level.INFO
 
         if not GLOBAL_LOGGING_ENABLED or not self._enable:
-            return
-
-        threshold = self._level if self._level is not None else GLOBAL_LOG_LEVEL
-        if level < threshold:
             return
 
         now = datetime.now()
@@ -218,11 +218,13 @@ class Logger:
         self._write_to_file(log_entry, date, time_str)
 
         if console_message is not None:
-            text = message if console_message == "" else console_message
-            if self._colorize:
-                color = self._colors.get(int(level), "")
-                text = f"{color}{text}{_ANSI_RESET}"
-            print(text)
+            threshold = self._level if self._level is not None else GLOBAL_LOG_LEVEL
+            if level >= threshold:
+                text = log_entry.rstrip("\n") if console_message == "" else console_message
+                if self._colorize:
+                    color = self._colors.get(int(level), "")
+                    text = f"{color}{text}{_ANSI_RESET}"
+                print(text)
 
     def enable_logging(self, enable_logging: bool) -> None:
         self._enable = enable_logging
@@ -244,13 +246,14 @@ class Logger:
         message : str
             Text prepended to the traceback in the log entry.
         level : LevelLike
-            Severity of this entry. Accepts a ``Level`` enum member or a
-            case-insensitive string: ``"TRACE"`` (5), ``"DEBUG"`` (10),
-            ``"INFO"`` (20), ``"WARNING"`` (30), ``"ERROR"`` (40),
-            ``"CRITICAL"`` (50).
+            Severity of this entry. Always written to file. Suppresses console
+            output when below the instance threshold. Accepts a ``Level`` enum
+            member or a case-insensitive string: ``"TRACE"`` (5),
+            ``"DEBUG"`` (10), ``"INFO"`` (20), ``"WARN"`` (30),
+            ``"ERROR"`` (40), ``"CRITICAL"`` (50).
         console_message : str | None
             When ``None`` (default), nothing is printed to stdout.
-            When ``""`` (empty string), prints *message* to stdout.
+            When ``""`` (empty string), prints the full formatted log entry to stdout.
             When any other string, prints that string to stdout instead of *message*.
         """
         if sys.exc_info()[0] is None:
@@ -277,13 +280,14 @@ class Logger:
         message : str
             Text to write to the log file.
         level : LevelLike
-            Severity of this entry. Accepts a ``Level`` enum member or a
-            case-insensitive string: ``"TRACE"`` (5), ``"DEBUG"`` (10),
-            ``"INFO"`` (20), ``"WARNING"`` (30), ``"ERROR"`` (40),
-            ``"CRITICAL"`` (50).
+            Severity of this entry. Always written to file. Suppresses console
+            output when below the instance threshold. Accepts a ``Level`` enum
+            member or a case-insensitive string: ``"TRACE"`` (5),
+            ``"DEBUG"`` (10), ``"INFO"`` (20), ``"WARN"`` (30),
+            ``"ERROR"`` (40), ``"CRITICAL"`` (50).
         console_message : str | None
             When ``None`` (default), nothing is printed to stdout.
-            When ``""`` (empty string), prints *message* to stdout.
+            When ``""`` (empty string), prints the full formatted log entry to stdout.
             When any other string, prints that string to stdout instead of *message*.
         """
         await asyncio.to_thread(
@@ -304,13 +308,14 @@ class Logger:
         message : str
             Text prepended to the traceback in the log entry.
         level : LevelLike
-            Severity of this entry. Accepts a ``Level`` enum member or a
-            case-insensitive string: ``"TRACE"`` (5), ``"DEBUG"`` (10),
-            ``"INFO"`` (20), ``"WARNING"`` (30), ``"ERROR"`` (40),
-            ``"CRITICAL"`` (50).
+            Severity of this entry. Always written to file. Suppresses console
+            output when below the instance threshold. Accepts a ``Level`` enum
+            member or a case-insensitive string: ``"TRACE"`` (5),
+            ``"DEBUG"`` (10), ``"INFO"`` (20), ``"WARN"`` (30),
+            ``"ERROR"`` (40), ``"CRITICAL"`` (50).
         console_message : str | None
             When ``None`` (default), nothing is printed to stdout.
-            When ``""`` (empty string), prints *message* to stdout.
+            When ``""`` (empty string), prints the full formatted log entry to stdout.
             When any other string, prints that string to stdout instead of *message*.
         """
         # Capture traceback now — sys.exc_info() is thread-local and will be
@@ -402,8 +407,8 @@ class Logger:
 
         file_name = os.path.join(file_path, f"{date}_logging.txt")
 
-        max_bytes    = self._max_bytes    if self._max_bytes    is not None else GLOBAL_MAX_BYTES
-        backup_count = self._backup_count if self._backup_count is not None else GLOBAL_BACKUP_COUNT
+        max_bytes    = GLOBAL_MAX_BYTES
+        backup_count = GLOBAL_BACKUP_COUNT
 
         with self._lock:
             if os.path.exists(file_name) and os.path.getsize(file_name) >= max_bytes:

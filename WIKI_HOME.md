@@ -15,7 +15,7 @@ from ntnlog import Logger, Level
 
 app_log = Logger()
 app_log("Server started")
-app_log("Request received", console_message="")   # also prints to stdout
+app_log("Request received", console_message="")   # prints full log entry to stdout
 app_log("Low disk space", Level.WARNING)           # WARNING level, no console
 ```
 
@@ -44,8 +44,9 @@ worker("Processing task")
 ## Level filtering
 
 ```python
-app_log = Logger(level=Level.WARNING)   # only WARNING and above written
-app_log = Logger(level="warning")       # string form also accepted
+app_log = Logger(level=Level.WARNING)   # console output suppressed below WARNING
+app_log = Logger(level="WARN")          # string form also accepted
+# everything is always written to file regardless of level
 ```
 
 ## Exception capturing
@@ -66,9 +67,11 @@ await app_log.aexception("Async error")  # captures traceback from calling corou
 
 ## Log rotation
 
+Rotation is configured globally — works out of the box with sensible defaults:
+
 ```python
-app_log = Logger(max_bytes=5_000_000, backup_count=3)
-# Keeps up to 3 backups: log.txt.1, log.txt.2, log.txt.3
+from ntnlog.ntn_config import GLOBAL_MAX_BYTES, GLOBAL_BACKUP_COUNT
+# defaults: 10 MB threshold, 1 backup kept
 ```
 
 ## Console colorization
