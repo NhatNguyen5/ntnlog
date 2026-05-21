@@ -220,6 +220,7 @@ __marimo__/
 
 # Project specific
 logs/
+test.py
 .directory
 .DS_Store
 *.swp
