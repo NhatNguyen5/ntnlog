@@ -1,9 +1,10 @@
 import asyncio as _asyncio
+import inspect
 import os
 import threading
 import tempfile
 import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import AsyncMock, patch, MagicMock, call
 from datetime import datetime
 from ntnlog.ntn_logging import Logger, _IGNORED_FILES, _IGNORED_PREFIXES
 from ntnlog.ntn_config import GLOBAL_LOGGING_ENABLED, GLOBAL_LOG_TRACING_ENABLED
@@ -39,6 +40,31 @@ def _read_log(log_dir="logs"):
     assert files, "No log file was created"
     with open(os.path.join(log_dir, files[0])) as f:
         return f.read()
+
+
+def _source_line(fn, marker: str) -> int:
+    """Return the file line of the first line in *fn* that contains *marker*."""
+    lines, start = inspect.getsourcelines(fn)
+    for offset, line in enumerate(lines):
+        if marker in line:
+            return start + offset
+    raise AssertionError(f"{marker!r} not found in {fn.__name__}")
+
+
+def _logged_caller(content: str, message: str) -> str:
+    """Return the caller field of the log line that contains *message*."""
+    line = next(
+        entry for entry in content.splitlines()
+        if entry.startswith("[") and message in entry
+    )
+    head = line.split(message, 1)[0].rstrip()
+    assert head.endswith("]"), head
+    return head[head.rfind("[") + 1:-1]
+
+
+def _expected_caller(fn, marker: str) -> str:
+    """``basename:line`` of the source line in *fn* that contains *marker*."""
+    return f"{os.path.basename(__file__)}:{_source_line(fn, marker)}"
 
 
 # ---------------------------------------------------------------------------
@@ -1397,3 +1423,166 @@ class TestAsyncSupport:
         log = Logger()
         import inspect
         assert inspect.iscoroutinefunction(log.aexception)
+
+
+# ---------------------------------------------------------------------------
+# Caller location (sync unchanged, async captured on the awaiting coroutine)
+# ---------------------------------------------------------------------------
+
+class TestCallerLocation:
+    """Entries name the user file and line, including awaited async calls."""
+
+    def test_log_caller_without_project_dir(self):
+        with _in_temp_dir():
+            log = _make_logger()
+
+            def emit():
+                log.log("sync-caller-blocklist")
+
+            emit()
+            content = _read_log()
+        assert _logged_caller(content, "sync-caller-blocklist") == _expected_caller(
+            emit, "sync-caller-blocklist"
+        )
+
+    def test_log_caller_with_project_dir(self):
+        with _in_temp_dir():
+            log = _make_logger(project_dir=os.path.dirname(os.path.abspath(__file__)))
+
+            def emit():
+                log.log("sync-caller-allowlist")
+
+            emit()
+            content = _read_log()
+        caller = _logged_caller(content, "sync-caller-allowlist")
+        assert caller == _expected_caller(emit, "sync-caller-allowlist")
+        assert caller != "unknown:0"
+
+    def test_alog_caller_without_project_dir(self):
+        with _in_temp_dir():
+            log = _make_logger()
+
+            async def emit():
+                await log.alog("async-caller-blocklist")
+
+            _asyncio.run(emit())
+            content = _read_log()
+        caller = _logged_caller(content, "async-caller-blocklist")
+        assert caller == _expected_caller(emit, "async-caller-blocklist")
+        assert "thread.py" not in caller
+
+    def test_alog_caller_with_project_dir(self):
+        with _in_temp_dir():
+            log = _make_logger(project_dir=os.path.dirname(os.path.abspath(__file__)))
+
+            async def emit():
+                await log.alog("async-caller-allowlist")
+
+            _asyncio.run(emit())
+            content = _read_log()
+        caller = _logged_caller(content, "async-caller-allowlist")
+        assert caller == _expected_caller(emit, "async-caller-allowlist")
+        assert caller != "unknown:0"
+        assert "thread.py" not in caller
+
+    def test_aexception_caller_without_project_dir(self):
+        with _in_temp_dir():
+            log = _make_logger()
+
+            async def emit():
+                try:
+                    raise ValueError("async boom")
+                except ValueError:
+                    await log.aexception("async-exc-blocklist")
+
+            _asyncio.run(emit())
+            content = _read_log()
+        caller = _logged_caller(content, "async-exc-blocklist")
+        assert caller == _expected_caller(emit, "async-exc-blocklist")
+        assert "thread.py" not in caller
+        assert "Traceback" in content
+        assert "ValueError" in content
+
+    def test_aexception_caller_with_project_dir(self):
+        with _in_temp_dir():
+            log = _make_logger(project_dir=os.path.dirname(os.path.abspath(__file__)))
+
+            async def emit():
+                try:
+                    raise ValueError("async boom")
+                except ValueError:
+                    await log.aexception("async-exc-allowlist")
+
+            _asyncio.run(emit())
+            content = _read_log()
+        caller = _logged_caller(content, "async-exc-allowlist")
+        assert caller == _expected_caller(emit, "async-exc-allowlist")
+        assert caller != "unknown:0"
+        assert "thread.py" not in caller
+        assert "Traceback" in content
+
+
+# ---------------------------------------------------------------------------
+# Async methods skip the worker when logging is off
+# ---------------------------------------------------------------------------
+
+class TestAsyncDisabled:
+    """Disabled async logs do not walk the stack or schedule a worker."""
+
+    def test_alog_skips_worker_when_instance_disabled(self):
+        log = Logger()
+        log.enable_logging(False)
+        with patch.object(log, "get_caller_info") as mock_caller:
+            with patch("ntnlog.ntn_logging.asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+                _asyncio.run(log.alog("silent"))
+        mock_caller.assert_not_called()
+        mock_to_thread.assert_not_called()
+
+    def test_alog_skips_worker_when_globally_disabled(self):
+        log = Logger()
+        with patch("ntnlog.ntn_logging.GLOBAL_LOGGING_ENABLED", False):
+            with patch.object(log, "get_caller_info") as mock_caller:
+                with patch("ntnlog.ntn_logging.asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+                    _asyncio.run(log.alog("silent"))
+        mock_caller.assert_not_called()
+        mock_to_thread.assert_not_called()
+
+    def test_aexception_skips_worker_when_instance_disabled(self):
+        log = Logger()
+        log.enable_logging(False)
+        with patch("ntnlog.ntn_logging.traceback.format_exc") as mock_tb:
+            with patch.object(log, "get_caller_info") as mock_caller:
+                with patch("ntnlog.ntn_logging.asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+                    try:
+                        raise RuntimeError("hidden")
+                    except RuntimeError:
+                        _asyncio.run(log.aexception("silent"))
+        mock_tb.assert_not_called()
+        mock_caller.assert_not_called()
+        mock_to_thread.assert_not_called()
+
+    def test_aexception_skips_worker_when_globally_disabled(self):
+        log = Logger()
+        with patch("ntnlog.ntn_logging.GLOBAL_LOGGING_ENABLED", False):
+            with patch("ntnlog.ntn_logging.traceback.format_exc") as mock_tb:
+                with patch.object(log, "get_caller_info") as mock_caller:
+                    with patch("ntnlog.ntn_logging.asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+                        try:
+                            raise RuntimeError("hidden")
+                        except RuntimeError:
+                            _asyncio.run(log.aexception("silent"))
+        mock_tb.assert_not_called()
+        mock_caller.assert_not_called()
+        mock_to_thread.assert_not_called()
+
+    def test_alog_invalid_level_raises_when_disabled(self):
+        log = Logger()
+        log.enable_logging(False)
+        with pytest.raises(ValueError, match="Unknown log level"):
+            _asyncio.run(log.alog("silent", level="NOPE"))
+
+    def test_aexception_invalid_level_raises_when_disabled(self):
+        log = Logger()
+        log.enable_logging(False)
+        with pytest.raises(ValueError, match="Unknown log level"):
+            _asyncio.run(log.aexception("silent", level="NOPE"))
