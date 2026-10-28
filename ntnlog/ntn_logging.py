@@ -13,7 +13,6 @@ import sys
 import traceback
 import threading
 from datetime import datetime
-from .ntn_file_utils import FileUtilsError, file_verify_path
 from inspect import getframeinfo, stack
 from .ntn_levels import Level, LevelLike
 
@@ -73,7 +72,9 @@ class Logger:
     ----------
     log_dir : str
         Directory (relative or absolute) where log files are written.
-        Defaults to ``./logs``.
+        Defaults to ``./logs``. Paths outside the current working
+        directory are written as given. The directory is created on the
+        first write when it does not already exist.
     project_dir : str | None
         Root of your project source tree. When supplied, only frames whose
         absolute path starts with this directory (and are not inside
@@ -97,6 +98,11 @@ class Logger:
         Per-instance color map keyed by ``int(Level)``. Merged on top of
         ``GLOBAL_LOG_COLORS`` at construction time; missing entries fall back
         to the global value.
+
+    Raises
+    ------
+    ValueError
+        If *log_dir* exists and is not a directory.
 
     Notes
     -----
@@ -131,6 +137,13 @@ class Logger:
         colorize: bool = False,
         colors: dict[int, str] | None = None,
     ):
+        # A non-directory at log_dir makes os.makedirs raise FileExistsError
+        # on the first write. Reject it once, here, instead.
+        if os.path.lexists(log_dir) and not os.path.isdir(log_dir):
+            raise ValueError(
+                f"log_dir {log_dir!r} exists but is not a directory"
+            )
+
         self._enable: bool = True
         self._enable_log_tracing: bool = False
         self._log_dir: str = log_dir
@@ -392,20 +405,14 @@ class Logger:
         return frames
 
     def _write_to_file(self, log_entry: str, date: str, time_str: str) -> None:
-        """Create the log directory/file if needed, then append *log_entry*."""
-        log_dir_path = os.path.join("./", self._log_dir)
+        """Create the log directory if needed, then append *log_entry*.
 
-        # Ensure the log directory exists
-        file_path = file_verify_path("./", self._log_dir)
-        if file_path == FileUtilsError.NOT_A_DIRECTORY.value.format(directory=self._log_dir):
-            os.makedirs(log_dir_path, exist_ok=True)
-            file_path = file_verify_path("./", self._log_dir)  # re-verify after creation
-
-        # Bail out if the path is still an error (e.g. outside working dir)
-        if not isinstance(file_path, str) or file_path.startswith("Error"):
-            return
-
-        file_name = os.path.join(file_path, f"{date}_logging.txt")
+        *log_dir* is a user-chosen location. It may be relative or absolute,
+        including a path outside the current working directory, and is not
+        passed through the working-directory check used for other file ops.
+        """
+        os.makedirs(self._log_dir, exist_ok=True)
+        file_name = os.path.join(self._log_dir, f"{date}_logging.txt")
 
         max_bytes    = GLOBAL_MAX_BYTES
         backup_count = GLOBAL_BACKUP_COUNT
