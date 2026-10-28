@@ -10,6 +10,11 @@ def resolve_path(path: str, must_exist: bool = False) -> str:
     """
     Resolve *path* relative to the working directory and verify it stays within it.
 
+    Containment is decided on real paths (symbolic links resolved) and compared
+    component-wise. A sibling directory whose name only shares the working
+    directory's string prefix, and a symlink that points outside the working
+    directory, are both rejected.
+
     Parameters
     ----------
     path : str
@@ -21,7 +26,8 @@ def resolve_path(path: str, must_exist: bool = False) -> str:
     Returns
     -------
     str
-        Resolved absolute path.
+        Resolved absolute path. Symbolic links in the returned path are not
+        expanded; the real path is used only for the containment check.
 
     Raises
     ------
@@ -33,7 +39,11 @@ def resolve_path(path: str, must_exist: bool = False) -> str:
     cwd = get_working_dir()
     resolved = os.path.normpath(os.path.join(cwd, path))
 
-    if not resolved.startswith(cwd):
+    # ``startswith`` treats ``/tmp/home/xy`` as inside ``/tmp/home/x`` and
+    # does not follow symlinks. Compare real path components instead.
+    cwd_real = os.path.realpath(cwd)
+    resolved_real = os.path.realpath(resolved)
+    if os.path.commonpath([cwd_real, resolved_real]) != cwd_real:
         raise ValueError(
             f"Path '{path}' escapes the working directory '{cwd}'"
         )
