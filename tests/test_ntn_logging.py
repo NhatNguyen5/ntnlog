@@ -691,22 +691,93 @@ class TestCollectProjectFrames:
 
 
 # ---------------------------------------------------------------------------
-# _write_to_file: bail on error path
+# _write_to_file
 # ---------------------------------------------------------------------------
 
 class TestWriteToFile:
-    def test_bails_when_path_is_error_string(self):
-        log = Logger()
-        with patch("ntnlog.ntn_logging.file_verify_path", return_value="Error: something went wrong"):
-            with patch("builtins.open") as mock_open:
-                log._write_to_file("entry\n", "2026-01-01", "10:00:00")
-                mock_open.assert_not_called()
-
     def test_creates_log_dir_if_missing(self):
         with _in_temp_dir():
             log = _make_logger(log_dir="new_logs")
             log.log("test")
             assert os.path.isdir("new_logs")
+
+
+# ---------------------------------------------------------------------------
+# log_dir location and non-directory rejection
+# ---------------------------------------------------------------------------
+
+class TestLogDir:
+    def test_absolute_log_dir_outside_cwd_writes_lines(self, tmp_path, monkeypatch):
+        work = tmp_path / "work"
+        work.mkdir()
+        monkeypatch.chdir(work)
+
+        log_dir = tmp_path / "abs"
+        log = Logger(log_dir=str(log_dir))
+        assert not log_dir.exists()
+
+        log("first line")
+        log("second line")
+
+        log_file = log_dir / f"{datetime.now().strftime('%Y-%m-%d')}_logging.txt"
+        assert log_file.is_file()
+        content = log_file.read_text()
+        assert "first line" in content
+        assert "second line" in content
+        assert list(work.iterdir()) == []
+
+    def test_relative_log_dir_writes_under_cwd(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        log = Logger(log_dir="logs")
+        log("relative line")
+
+        log_file = tmp_path / "logs" / f"{datetime.now().strftime('%Y-%m-%d')}_logging.txt"
+        assert log_file.is_file()
+        assert "relative line" in log_file.read_text()
+
+    def test_relative_parent_log_dir_outside_cwd_writes(self, tmp_path, monkeypatch):
+        work = tmp_path / "work"
+        work.mkdir()
+        monkeypatch.chdir(work)
+
+        log = Logger(log_dir="../abs")
+        log("outside via parent")
+
+        log_file = tmp_path / "abs" / f"{datetime.now().strftime('%Y-%m-%d')}_logging.txt"
+        assert log_file.is_file()
+        assert "outside via parent" in log_file.read_text()
+
+    def test_existing_directory_outside_cwd_is_used(self, tmp_path, monkeypatch):
+        work = tmp_path / "work"
+        work.mkdir()
+        monkeypatch.chdir(work)
+        log_dir = tmp_path / "abs"
+        log_dir.mkdir()
+
+        log = Logger(log_dir=str(log_dir))
+        log("already there")
+
+        content = (log_dir / f"{datetime.now().strftime('%Y-%m-%d')}_logging.txt").read_text()
+        assert "already there" in content
+
+    def test_existing_file_log_dir_raises_value_error(self, tmp_path):
+        target = tmp_path / "not_a_dir"
+        target.write_text("keep")
+
+        with pytest.raises(ValueError, match="not a directory") as exc:
+            Logger(log_dir=str(target))
+
+        assert str(target) in str(exc.value)
+        assert target.read_text() == "keep"
+
+    def test_relative_existing_file_log_dir_raises_value_error(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "logs").write_text("keep")
+
+        with pytest.raises(ValueError, match="not a directory"):
+            Logger(log_dir="logs")
+
+        assert (tmp_path / "logs").read_text() == "keep"
 
 
 # ---------------------------------------------------------------------------
