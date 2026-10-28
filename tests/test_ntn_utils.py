@@ -79,6 +79,29 @@ class TestResolvePathValid:
         result = resolve_path("a/../logs")
         assert result == os.path.normpath(os.path.join(os.getcwd(), "logs"))
 
+    def test_child_and_return_trip_stay_inside_when_sibling_exists(self, tmp_path, monkeypatch):
+        # ``x/f`` and ``../x/f`` stay inside ``x`` even when sibling ``xy`` exists.
+        x = tmp_path / "x"
+        xy = tmp_path / "xy"
+        x.mkdir()
+        xy.mkdir()
+        (x / "f").write_text("ok")
+        monkeypatch.chdir(x)
+
+        assert resolve_path("f") == os.path.normpath(os.path.join(os.getcwd(), "f"))
+        assert resolve_path("../x/f") == os.path.normpath(os.path.join(os.getcwd(), "f"))
+
+    def test_symlink_inside_cwd_allowed(self, tmp_path, monkeypatch):
+        x = tmp_path / "x"
+        x.mkdir()
+        target = x / "data.txt"
+        target.write_text("ok")
+        (x / "link").symlink_to(target)
+        monkeypatch.chdir(x)
+
+        assert resolve_path("link") == os.path.normpath(os.path.join(os.getcwd(), "link"))
+        assert resolve_path("link", must_exist=True) == os.path.join(os.getcwd(), "link")
+
     def test_accessible_via_ntnlog_utils(self):
         result = ntnlog.utils.resolve_path("logs")
         assert os.path.isabs(result)
@@ -104,6 +127,31 @@ class TestResolvePathEscape:
     def test_error_message_contains_original_path(self):
         with pytest.raises(ValueError, match="../bad"):
             resolve_path("../bad")
+
+    def test_sibling_prefix_raises(self, tmp_path, monkeypatch):
+        # ``/tmp/home/xy`` startswith ``/tmp/home/x``; the sibling is still outside.
+        x = tmp_path / "x"
+        xy = tmp_path / "xy"
+        x.mkdir()
+        xy.mkdir()
+        (xy / "f").write_text("secret")
+        monkeypatch.chdir(x)
+
+        with pytest.raises(ValueError, match="escapes the working directory"):
+            resolve_path("../xy/f")
+
+    def test_symlink_escape_raises(self, tmp_path, monkeypatch):
+        x = tmp_path / "x"
+        outside = tmp_path / "outside"
+        x.mkdir()
+        outside.mkdir()
+        target = outside / "secret"
+        target.write_text("secret")
+        (x / "link").symlink_to(target)
+        monkeypatch.chdir(x)
+
+        with pytest.raises(ValueError, match="escapes the working directory"):
+            resolve_path("link")
 
 
 # ---------------------------------------------------------------------------

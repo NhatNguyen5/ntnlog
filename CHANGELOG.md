@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `resolve_path()` no longer accepts a path that escapes the working directory when a sibling directory merely shares its string prefix (for example `../xy` while the working directory is `x`), or when a symlink inside the working directory points outside it. Containment is checked with `realpath` and `os.path.commonpath`.
+
 ## [0.6.0] - 2026-05-21
 ### Changed
 - **Breaking**: `max_bytes` and `backup_count` removed from `Logger.__init__()` — log rotation is now configured globally via `GLOBAL_MAX_BYTES` and `GLOBAL_BACKUP_COUNT` in `ntn_config.py`; all logger instances share the same rotation settings
