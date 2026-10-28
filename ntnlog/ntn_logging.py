@@ -122,6 +122,25 @@ class Logger:
             valid = [lvl.name for lvl in Level]
             raise ValueError(f"Unknown log level {value!r}. Valid levels: {valid}")
 
+    @staticmethod
+    def _coerce_level(level: LevelLike) -> Level:
+        """
+        Resolve *level* to a ``Level``.
+
+        Parameters
+        ----------
+        level : LevelLike
+            A ``Level`` member or a case-insensitive level name.
+
+        Returns
+        -------
+        Level
+            The resolved severity. ``"WARN"`` maps to ``Level.WARNING``.
+        """
+        if isinstance(level, str):
+            return Logger._parse_level(level) or Level.INFO
+        return level
+
     def __init__(
         self,
         log_dir: str = DEFAULT_LOG_DIR,
@@ -197,34 +216,7 @@ class Logger:
             When ``""`` (empty string), prints the full formatted log entry to stdout.
             When any other string, prints that string to stdout instead of *message*.
         """
-        if isinstance(level, str):
-            level = self._parse_level(level) or Level.INFO
-
-        if not GLOBAL_LOGGING_ENABLED or not self._enable:
-            return
-
-        now = datetime.now()
-        date = now.strftime("%Y-%m-%d")
-        time_str = now.strftime("%H:%M:%S")
-        timestamp = f"{date} {time_str}"
-
-        name_segment  = f"[{self._name}]" if self._name else ""
-        level_segment = f"[{level.name}]"
-        logistic_data = f"[{timestamp}]{level_segment}{name_segment}[{self.get_caller_info()}]"
-        padded_space = "".rjust(len(logistic_data) + 1)
-        formatted_message = str(message).replace("\n", f"\n{padded_space}")
-        log_entry = f"{logistic_data} {formatted_message}\n"
-
-        self._write_to_file(log_entry, date, time_str)
-
-        if console_message is not None:
-            threshold = self._level if self._level is not None else GLOBAL_LOG_LEVEL
-            if level >= threshold:
-                text = log_entry.rstrip("\n") if console_message == "" else console_message
-                if self._colorize:
-                    color = self._colors.get(int(level), "")
-                    text = f"{color}{text}{_ANSI_RESET}"
-                print(text)
+        self._log(message, level, console_message)
 
     def enable_logging(self, enable_logging: bool) -> None:
         self._enable = enable_logging
@@ -289,9 +281,25 @@ class Logger:
             When ``None`` (default), nothing is printed to stdout.
             When ``""`` (empty string), prints the full formatted log entry to stdout.
             When any other string, prints that string to stdout instead of *message*.
+
+        Notes
+        -----
+        The caller's file and line are captured on this coroutine before the
+        write is handed to a worker thread. When ``GLOBAL_LOGGING_ENABLED`` is
+        false or this logger has been turned off with :meth:`enable_logging`,
+        the coroutine returns without scheduling that write.
         """
+        level = self._coerce_level(level)
+        if not GLOBAL_LOGGING_ENABLED or not self._enable:
+            return
+        # Resolve the caller here. The worker that runs the write only has
+        # concurrent.futures on its stack, which is not the awaiting code.
         await asyncio.to_thread(
-            self.log, message, level, console_message
+            self._log,
+            message,
+            level,
+            console_message,
+            caller_info=self.get_caller_info(),
         )
 
     async def aexception(
@@ -317,18 +325,29 @@ class Logger:
             When ``None`` (default), nothing is printed to stdout.
             When ``""`` (empty string), prints the full formatted log entry to stdout.
             When any other string, prints that string to stdout instead of *message*.
+
+        Notes
+        -----
+        The traceback and the caller's file and line are captured on this
+        coroutine before the write is handed to a worker thread.
+        ``sys.exc_info()`` is thread-local, and the worker stack is not the
+        awaiting code. When ``GLOBAL_LOGGING_ENABLED`` is false or this logger
+        has been turned off with :meth:`enable_logging`, the coroutine returns
+        without formatting a traceback or scheduling that write.
         """
-        # Capture traceback now — sys.exc_info() is thread-local and will be
-        # empty inside the worker thread spawned by asyncio.to_thread().
+        level = self._coerce_level(level)
+        if not GLOBAL_LOGGING_ENABLED or not self._enable:
+            return
         if sys.exc_info()[0] is None:
             tb_text = ""
         else:
             tb_text = "\n" + traceback.format_exc().rstrip()
         await asyncio.to_thread(
-            self.log,
+            self._log,
             f"{message}{tb_text}",
             level,
             console_message,
+            caller_info=self.get_caller_info(),
         )
 
     # ------------------------------------------------------------------
@@ -350,6 +369,63 @@ class Logger:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _log(
+        self,
+        message: str,
+        level: LevelLike,
+        console_message: str | None,
+        caller_info: str | None = None,
+    ) -> None:
+        """
+        Format one entry and write it.
+
+        Parameters
+        ----------
+        message : str
+            Text to write to the log file.
+        level : LevelLike
+            Severity of this entry. Strings are resolved the same way as
+            :meth:`log`.
+        console_message : str | None
+            When ``None``, nothing is printed to stdout. When ``""``, the full
+            formatted entry is printed. Any other string is printed instead.
+        caller_info : str | None
+            Precomputed caller (``file:line`` or a trace chain). When ``None``,
+            the caller is taken from the current stack. Async methods pass a
+            value captured on the awaiting coroutine so the worker thread's
+            stack is not consulted.
+        """
+        level = self._coerce_level(level)
+
+        if not GLOBAL_LOGGING_ENABLED or not self._enable:
+            return
+
+        if caller_info is None:
+            caller_info = self.get_caller_info()
+
+        now = datetime.now()
+        date = now.strftime("%Y-%m-%d")
+        time_str = now.strftime("%H:%M:%S")
+        timestamp = f"{date} {time_str}"
+
+        name_segment  = f"[{self._name}]" if self._name else ""
+        level_segment = f"[{level.name}]"
+        logistic_data = f"[{timestamp}]{level_segment}{name_segment}[{caller_info}]"
+        padded_space = "".rjust(len(logistic_data) + 1)
+        formatted_message = str(message).replace("\n", f"\n{padded_space}")
+        log_entry = f"{logistic_data} {formatted_message}\n"
+
+        self._write_to_file(log_entry, date, time_str)
+
+        if console_message is not None:
+            threshold = self._level if self._level is not None else GLOBAL_LOG_LEVEL
+            if level >= threshold:
+                text = log_entry.rstrip("\n") if console_message == "" else console_message
+                if self._colorize:
+                    color = self._colors.get(int(level), "")
+                    text = f"{color}{text}{_ANSI_RESET}"
+                print(text)
 
     def _is_project_frame(self, filename: str) -> bool:
         """

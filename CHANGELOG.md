@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `alog()` and `aexception()` record the file and line of the coroutine that awaited them. Caller lookup previously ran on the `asyncio.to_thread` worker, so entries were tagged with `thread.py` (or `unknown:0` when `project_dir` excluded that frame)
+- `alog()` and `aexception()` return without scheduling a worker when `GLOBAL_LOGGING_ENABLED` is false or the instance has been turned off with `enable_logging(False)`. A bad level string still raises `ValueError`
+
 ## [0.6.0] - 2026-05-21
 ### Changed
 - **Breaking**: `max_bytes` and `backup_count` removed from `Logger.__init__()` — log rotation is now configured globally via `GLOBAL_MAX_BYTES` and `GLOBAL_BACKUP_COUNT` in `ntn_config.py`; all logger instances share the same rotation settings
