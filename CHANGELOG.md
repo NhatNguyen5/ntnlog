@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Fixed
+- Coverage report deploys queue on the `pages` concurrency group instead of failing when another GitHub Pages deployment is already in progress
 - `Logger` writes entries when `log_dir` is an absolute path outside the current working directory, instead of dropping them with no error
 - `Logger` raises `ValueError` at construction when `log_dir` exists but is not a directory, instead of an unhandled `FileExistsError` from `os.makedirs` on the first write
 
